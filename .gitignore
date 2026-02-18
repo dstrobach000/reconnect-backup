@@ -4,6 +4,7 @@
 # next.js
 /.next
 /out
+/.vercel
 
 # production
 /build
@@ -16,6 +17,7 @@ pnpm-debug.log*
 
 # env files
 .env*
+!.env.example
 
 # macOS
 .DS_Store
