@@ -1,7 +1,8 @@
 'use client';
-import { useEffect, useRef, useMemo, useCallback } from 'react';
+import { useEffect, useRef, useMemo, useCallback, useState } from 'react';
 import { normalizeComposerRecipe } from '../../lib/symbolComposer';
 import { SymbolRenderer } from '../../lib/webgl/SymbolRenderer';
+import SymbolComposerCanvas from './SymbolComposerCanvas';
 
 interface Props {
   recipe: unknown;
@@ -27,6 +28,7 @@ export default function SymbolComposerCanvasGL({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<SymbolRenderer | null>(null);
   const rafRef = useRef<number>(0);
+  const [fallbackToSvg, setFallbackToSvg] = useState(false);
   const normalizedRecipe = useMemo(() => normalizeComposerRecipe(recipe), [recipe]);
   const isForcedTime =
     typeof forceTimeSeconds === 'number' && Number.isFinite(forceTimeSeconds);
@@ -40,24 +42,30 @@ export default function SymbolComposerCanvasGL({
   const renderOneFrame = useCallback(
     (renderer: SymbolRenderer, t: number) => {
       renderer.resize(renderSize.w, renderSize.h);
-      renderer.renderFrame(normalizedRecipe, t);
+      try {
+        renderer.renderFrame(normalizedRecipe, t);
+      } catch {
+        setFallbackToSvg(true);
+      }
     },
     [normalizedRecipe, renderSize],
   );
 
   useEffect(() => {
+    if (fallbackToSvg) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     try {
       rendererRef.current = new SymbolRenderer(canvas);
     } catch {
+      setFallbackToSvg(true);
       return;
     }
     return () => {
       rendererRef.current?.dispose();
       rendererRef.current = null;
     };
-  }, []);
+  }, [fallbackToSvg]);
 
   // forced time mode (Remotion export)
   useEffect(() => {
@@ -75,6 +83,7 @@ export default function SymbolComposerCanvasGL({
 
   // preview animation loop
   useEffect(() => {
+    if (fallbackToSvg) return;
     if (isForcedTime || !animate) return;
     const renderer = rendererRef.current;
     if (!renderer) return;
@@ -95,14 +104,27 @@ export default function SymbolComposerCanvasGL({
 
     rafRef.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [isForcedTime, animate, fpsCap, renderOneFrame]);
+  }, [isForcedTime, animate, fpsCap, renderOneFrame, fallbackToSvg]);
+
+  if (fallbackToSvg) {
+    return (
+      <SymbolComposerCanvas
+        recipe={normalizedRecipe}
+        className={className}
+        animate={animate}
+        fpsCap={fpsCap}
+        forceTimeSeconds={forceTimeSeconds}
+        style={style}
+      />
+    );
+  }
 
   return (
     <canvas
       ref={canvasRef}
       width={renderSize.w}
       height={renderSize.h}
-      className={className}
+      className={`border border-[rgb(var(--signal-rgb)/0.45)] ${className}`}
       style={{
         backgroundColor: normalizedRecipe.backgroundColor,
         ...style,

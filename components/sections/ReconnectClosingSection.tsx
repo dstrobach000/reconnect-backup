@@ -1,8 +1,5 @@
 'use client';
 
-import { useRef } from 'react';
-import RadarSvg from '../radar/RadarSvg';
-import { useRadarAnimation } from '../radar/useRadarAnimation';
 import { getDisplayFontFamily, getSupportingFontFamily } from '../../lib/fontPicker';
 
 const LEFT_COLUMN_PARAGRAPHS = [
@@ -20,29 +17,32 @@ const RIGHT_COLUMN_PARAGRAPHS = [
 export default function ReconnectClosingSection({
   selectedDisplayFont,
   selectedSupportingFont,
-  selectedGlyph,
 }: {
   selectedDisplayFont: string;
   selectedSupportingFont: string;
-  selectedGlyph: string;
 }) {
-  const rootRef = useRef(null);
   const displayFontFamily = getDisplayFontFamily(selectedDisplayFont);
   const supportingFontFamily = getSupportingFontFamily(selectedSupportingFont);
 
-  useRadarAnimation(rootRef, selectedGlyph);
-
   return (
     <section className="w-full border-y border-[rgb(var(--signal-rgb)/0.22)] bg-white text-black">
-      <div ref={rootRef} className="mx-auto w-full max-w-7xl px-6 py-14 md:py-20">
+      <div className="mx-auto w-full max-w-7xl px-6 py-14 md:py-20">
         <div className="grid grid-cols-1 gap-10 md:grid-cols-[minmax(170px,0.8fr)_1fr_1fr] md:grid-rows-[auto_1fr] md:gap-12">
-          <div className="order-1 md:row-span-2">
-            <div className="aspect-square w-full max-w-[260px]">
-              <RadarSvg className="h-full w-full" mono="currentColor" variant={selectedGlyph} />
+          <div className="order-2 md:row-span-2 md:row-start-1">
+            <div className="relative aspect-square w-full max-w-[260px] overflow-hidden bg-black [contain:paint]">
+              <video
+                src="/exports/512_dot_01.mp4"
+                className="absolute inset-0 block h-full w-full object-cover [backface-visibility:hidden] [transform:translateZ(0)]"
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="metadata"
+              />
             </div>
           </div>
 
-          <div className="order-2">
+          <div className="order-1 md:col-span-2 md:col-start-2">
             <h2
               className="text-5xl leading-none tracking-tight md:text-6xl"
               style={{ fontFamily: displayFontFamily }}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import SymbolComposerCanvas from '../animation/SymbolComposerCanvas';
+import SymbolComposerCanvas from '../animation/SymbolComposerCanvasGL';
 import ExportPanel from './ExportPanel';
 import StyledDropdown from './StyledDropdown';
 import { BUILDER_STORAGE_KEY } from '../../lib/animationBuilder';

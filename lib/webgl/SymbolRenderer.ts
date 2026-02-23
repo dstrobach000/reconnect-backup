@@ -111,7 +111,7 @@ function getLayerMotion(layer: any, t: number, loop: number, gSpeed: number): La
       const mn = 0, mx = Math.max(0, layer.armLength - 1);
       const lo = clamp(layer.armGap * 0.22, mn, mx);
       const hi = clamp(Math.max(layer.armGap * 1.85, layer.armGap + 3), mn, mx);
-      armGap = lo + (hi - lo) * ph;
+      armGap = lo + (hi - lo) * tri;
       continue;
     }
     if (layer.type === 'cross' && m === 'cross-arm-length') {
@@ -119,7 +119,7 @@ function getLayerMotion(layer: any, t: number, loop: number, gSpeed: number): La
       const mxL = Math.max(mnL + 0.5, Math.min(44, layer.armLength * 1.5));
       const lo = clamp(Math.max(layer.armLength * 0.45, layer.armGap + 1), mnL, mxL);
       const hi = clamp(Math.max(layer.armLength * 1.45, lo + 1), mnL, mxL);
-      armLength = lo + (hi - lo) * ph;
+      armLength = lo + (hi - lo) * tri;
       continue;
     }
     if (layer.type === 'cross' && m === 'cross-arm-morph') {
@@ -165,7 +165,12 @@ function getSweepState(
 function getLayerSizeScale(idx: number, total: number, ratio: number) {
   if (total <= 1) return 1;
   const pivot = (total - 1) * 0.5;
-  return clamp(Math.pow(ratio, idx - pivot), 0.2, 4);
+  const exponent = idx - pivot;
+  let scaled = Math.pow(ratio, exponent);
+  if (total % 2 === 1 && Math.abs(exponent) < 0.0001) {
+    scaled *= Math.pow(ratio, 0.5);
+  }
+  return clamp(scaled, 0.2, 4);
 }
 
 function getRepeatInstanceScale(layer: any, idx: number) {
@@ -199,13 +204,92 @@ function getLayerExtent(layer: any, sw: number) {
   return (byType[layer.type] ?? 1) * rsm + layer.repeatRadius;
 }
 
+function layerHasMotion(layer: any, motion: string) {
+  return layer.motion === motion || layer.motionSecondary === motion;
+}
+
+function estimateLayerMotionScaleMax(layer: any) {
+  let mul = 1;
+  if (layerHasMotion(layer, 'pulse')) mul *= 1.14;
+  if (layerHasMotion(layer, 'infinite-zoom')) mul *= 1.08;
+  if (layer.type === 'cross' && (layerHasMotion(layer, 'cross-arm-length') || layerHasMotion(layer, 'cross-arm-morph'))) {
+    mul *= 1.45;
+  }
+  return mul;
+}
+
+function estimateMasterScaleMax(recipe: any) {
+  if (recipe.masterMotion === 'pulse') return 1.07;
+  if (recipe.masterMotion === 'infinite-zoom') return 1.22;
+  return 1;
+}
+
+function estimateFeedbackScaleMax(recipe: any) {
+  const feedbackCount = Math.max(0, recipe.masterFeedback ?? 0);
+  let maxScale = 1 + feedbackCount * 0.08;
+  if (feedbackCount > 0 && recipe.feedbackLfoEnabled) {
+    maxScale += clamp(recipe.feedbackLfoDepth ?? 0, 0, 1) * 0.34;
+  }
+  return maxScale;
+}
+
+function estimateEffectPad(effect: string, str: number, det: number) {
+  if (effect === 'pixelate') {
+    return 0.12 + str * (0.9 + det * 2.2);
+  }
+  if (effect === 'blur') {
+    const std = 0.08 + str * (1.2 + det * 4);
+    return std * 2.6;
+  }
+  if (effect === 'glow') {
+    const std = 0.08 + str * (0.8 + det * 2.4);
+    return std * 2.8;
+  }
+  return 0;
+}
+
+function estimatePostFxPad(recipe: any) {
+  let pad = 0;
+
+  if (recipe.masterParticlesEnabled) {
+    const pStr = recipe.masterParticlesStrength ?? 0.55;
+    const pDet = recipe.masterParticlesDetail ?? 0.6;
+    const pRadius = 0.06 + pStr * (0.45 + pDet * 1.15);
+    const circlePad = recipe.masterParticleShape === 'circle'
+      ? 0.15 + pRadius * 0.7
+      : 0;
+    pad += pRadius + circlePad;
+  }
+
+  pad += estimateEffectPad(
+    recipe.masterRenderEffect,
+    recipe.masterRenderStrength,
+    recipe.masterRenderDetail,
+  );
+  pad += estimateEffectPad(
+    recipe.masterRenderEffectSecondary,
+    recipe.masterRenderStrengthSecondary,
+    recipe.masterRenderDetailSecondary,
+  );
+
+  // Small fixed safety guard for rasterized/threshold edges.
+  pad += 0.8;
+
+  return pad;
+}
+
 function computeSceneScale(recipe: any, layerSizeRatioFit: number) {
   let maxExt = 1;
-  const total = recipe.layers.length;
-  for (let i = 0; i < total; i++) {
-    const l = recipe.layers[i];
+  const enabledLayerIndices: number[] = [];
+  for (let i = 0; i < recipe.layers.length; i++) {
+    if (recipe.layers[i]?.enabled) enabledLayerIndices.push(i);
+  }
+  const enabledTotal = Math.max(1, enabledLayerIndices.length);
+  for (let enabledIndex = 0; enabledIndex < enabledLayerIndices.length; enabledIndex++) {
+    const layerIndex = enabledLayerIndices[enabledIndex];
+    const l = recipe.layers[layerIndex];
     if (!l.enabled) continue;
-    const ls = getLayerSizeScale(i, total, layerSizeRatioFit);
+    const ls = getLayerSizeScale(enabledIndex, enabledTotal, layerSizeRatioFit);
     maxExt = Math.max(maxExt, getLayerExtent(l, recipe.masterStrokeWidth) * ls);
   }
   return clamp((48 / Math.max(1, maxExt)) * recipe.masterSize, 0.1, 12);
@@ -248,7 +332,8 @@ interface FBO {
 function createFBO(gl: WebGL2RenderingContext, w: number, h: number): FBO {
   const tex = gl.createTexture()!;
   gl.bindTexture(gl.TEXTURE_2D, tex);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, w, h, 0, gl.RGBA, gl.HALF_FLOAT, null);
+  // Use universally supported 8-bit render targets for reliable preview output.
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -256,6 +341,13 @@ function createFBO(gl: WebGL2RenderingContext, w: number, h: number): FBO {
   const fb = gl.createFramebuffer()!;
   gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+  const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+  if (status !== gl.FRAMEBUFFER_COMPLETE) {
+    gl.deleteFramebuffer(fb);
+    gl.deleteTexture(tex);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    throw new Error(`Framebuffer incomplete: ${status}`);
+  }
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   return { fb, tex, w, h };
 }
@@ -263,7 +355,7 @@ function createFBO(gl: WebGL2RenderingContext, w: number, h: number): FBO {
 function resizeFBO(gl: WebGL2RenderingContext, fbo: FBO, w: number, h: number) {
   if (fbo.w === w && fbo.h === h) return;
   gl.bindTexture(gl.TEXTURE_2D, fbo.tex);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, w, h, 0, gl.RGBA, gl.HALF_FLOAT, null);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
   fbo.w = w;
   fbo.h = h;
 }
@@ -321,7 +413,6 @@ export class SymbolRenderer {
       antialias: false,
     })!;
     if (!gl) throw new Error('WebGL2 not available');
-    gl.getExtension('EXT_color_buffer_half_float');
     this.gl = gl;
 
     const geoUniforms = [
@@ -345,7 +436,7 @@ export class SymbolRenderer {
     this.geo = buildProg(gl, QUAD_VERT, GEOMETRY_FRAG, geoUniforms);
     this.copy = buildProg(gl, QUAD_VERT, COPY_FRAG, ['u_tex']);
     this.feedback = buildProg(gl, QUAD_VERT, FEEDBACK_FRAG, ['u_tex', 'u_scale', 'u_opacity']);
-    this.threshold = buildProg(gl, QUAD_VERT, THRESHOLD_FRAG, ['u_tex', 'u_cutoff', 'u_softness']);
+    this.threshold = buildProg(gl, QUAD_VERT, THRESHOLD_FRAG, ['u_tex', 'u_cutoff', 'u_softness', 'u_amount']);
     this.posterize = buildProg(gl, QUAD_VERT, POSTERIZE_FRAG, ['u_tex', 'u_steps']);
     this.pixelate = buildProg(gl, QUAD_VERT, PIXELATE_FRAG, ['u_tex', 'u_resolution', 'u_pixelSize']);
     this.blur = buildProg(gl, QUAD_VERT, BLUR_FRAG, ['u_tex', 'u_dir', 'u_radius']);
@@ -426,6 +517,14 @@ export class SymbolRenderer {
     const sceneScale = computeSceneScale(r, layerSizeRatioFit);
     const mm = getMasterMotion(r, t, gSpeed);
     const totalLayers = r.layers.length;
+    const enabledLayerOrderByIndex = new Array<number>(totalLayers).fill(-1);
+    let enabledLayerCount = 0;
+    for (let li = 0; li < totalLayers; li++) {
+      if (!r.layers[li]?.enabled) continue;
+      enabledLayerOrderByIndex[li] = enabledLayerCount;
+      enabledLayerCount += 1;
+    }
+    enabledLayerCount = Math.max(1, enabledLayerCount);
     const inverted = r.inverted;
     const layerColor: [number, number, number] = inverted ? [0, 0, 0] : [1, 1, 1];
 
@@ -466,7 +565,12 @@ export class SymbolRenderer {
       if (!layer.enabled) continue;
 
       const lm = getLayerMotion(layer, t, r.loopSeconds, gSpeed);
-      const lss = getLayerSizeScale(li, totalLayers, forcedLayerSizeRatio);
+      const enabledLayerIndex = enabledLayerOrderByIndex[li];
+      const lss = getLayerSizeScale(
+        enabledLayerIndex < 0 ? 0 : enabledLayerIndex,
+        enabledLayerCount,
+        forcedLayerSizeRatio,
+      );
       const hasSweepAngle = getLayerMotionModes(layer).includes('sweep-angle');
 
       gl.uniform1f(this.u(this.geo, 'u_layerAngle'), lm.angle);
@@ -638,14 +742,16 @@ export class SymbolRenderer {
       gl.disable(gl.BLEND);
 
       if (effect === 'threshold') {
-        const cutoff = clamp(0.1 + str * 0.8, 0.05, 0.95);
-        const softness = clamp((1 - det) * 0.22, 0, 0.25);
+        const cutoff = clamp(0.12 + det * 0.82, 0.02, 0.99);
+        const softness = clamp((1 - det) * 0.12, 0, 0.14);
+        const amount = clamp(str, 0, 1);
         gl.useProgram(this.threshold.id);
         this.bindFB(writeFB);
         this.bindTex(0, readFB.tex);
         gl.uniform1i(this.u(this.threshold, 'u_tex'), 0);
         gl.uniform1f(this.u(this.threshold, 'u_cutoff'), cutoff);
         gl.uniform1f(this.u(this.threshold, 'u_softness'), softness);
+        gl.uniform1f(this.u(this.threshold, 'u_amount'), amount);
         this.drawQuad();
         swap();
       } else if (effect === 'posterize') {

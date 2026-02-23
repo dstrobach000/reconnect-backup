@@ -1,0 +1,40 @@
+{
+  "titleControls": {
+    "fontFamily": "var(--font-mekanikal)",
+    "color": "#ffffff",
+    "mode": "stroke",
+    "strokeWidth": 1,
+    "fontSize": 148,
+    "mobileScale": 0.3,
+    "letterSpacing": -0.005,
+    "textTransform": "uppercase"
+  },
+  "tickerControls": {
+    "fontFamily": "var(--font-dazzed)",
+    "color": "#ffffff",
+    "mode": "fill",
+    "strokeWidth": 0,
+    "fontSize": 45,
+    "mobileScale": 0.7,
+    "letterSpacing": 0,
+    "textTransform": "capitalize"
+  },
+  "eventControls": {
+    "fontFamily": "var(--font-dazzed)",
+    "color": "#000000",
+    "mode": "fill",
+    "strokeWidth": 0,
+    "fontSize": 20,
+    "mobileScale": 0.5,
+    "letterSpacing": 0.005,
+    "textTransform": "capitalize"
+  },
+  "themeColor": "#e07bc2",
+  "highlightMode": "theme",
+  "highlightColor": "#000000",
+  "highlightRadius": 24,
+  "overlayBlendMode": "multiply",
+  "overlayOpacity": 1,
+  "overlayVideo": "/exports/1920_cross_02.mp4",
+  "updatedAt": "2026-02-23T17:18:31.643Z"
+}

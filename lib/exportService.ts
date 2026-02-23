@@ -37,6 +37,16 @@ function getExportPrefix(recipe: ReturnType<typeof normalizeComposerRecipe>): st
 }
 
 async function getServeUrl(): Promise<string> {
+  const shouldCacheBundle = process.env.NODE_ENV === 'production';
+
+  if (!shouldCacheBundle) {
+    const { bundle } = await import('@remotion/bundler');
+    return bundle({
+      entryPoint: REMOTION_ENTRY,
+      onProgress: () => undefined,
+    });
+  }
+
   if (!bundlePromise) {
     const { bundle } = await import('@remotion/bundler');
     bundlePromise = bundle({

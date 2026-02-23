@@ -35,12 +35,6 @@ export default function PresentationMenu() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   useEffect(() => {
-    const previousOverflow = document.body.style.overflow;
-
-    if (isMenuOpen) {
-      document.body.style.overflow = 'hidden';
-    }
-
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setIsMenuOpen(false);
@@ -50,8 +44,45 @@ export default function PresentationMenu() {
     window.addEventListener('keydown', onKeyDown);
 
     return () => {
-      document.body.style.overflow = previousOverflow;
       window.removeEventListener('keydown', onKeyDown);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isMenuOpen) return;
+
+    const html = document.documentElement;
+    const body = document.body;
+    const scrollY = window.scrollY;
+
+    const previousHtmlOverflow = html.style.overflow;
+    const previousHtmlOverscrollBehavior = html.style.overscrollBehavior;
+    const previousBodyOverflow = body.style.overflow;
+    const previousBodyPosition = body.style.position;
+    const previousBodyTop = body.style.top;
+    const previousBodyWidth = body.style.width;
+    const previousBodyOverscrollBehavior = body.style.overscrollBehavior;
+    const previousBodyTouchAction = body.style.touchAction;
+
+    html.style.overflow = 'hidden';
+    html.style.overscrollBehavior = 'none';
+    body.style.overflow = 'hidden';
+    body.style.position = 'fixed';
+    body.style.top = `-${scrollY}px`;
+    body.style.width = '100%';
+    body.style.overscrollBehavior = 'none';
+    body.style.touchAction = 'none';
+
+    return () => {
+      html.style.overflow = previousHtmlOverflow;
+      html.style.overscrollBehavior = previousHtmlOverscrollBehavior;
+      body.style.overflow = previousBodyOverflow;
+      body.style.position = previousBodyPosition;
+      body.style.top = previousBodyTop;
+      body.style.width = previousBodyWidth;
+      body.style.overscrollBehavior = previousBodyOverscrollBehavior;
+      body.style.touchAction = previousBodyTouchAction;
+      window.scrollTo(0, scrollY);
     };
   }, [isMenuOpen]);
 
@@ -91,7 +122,11 @@ export default function PresentationMenu() {
       {isMenuOpen ? (
         <div
           id="presentation-menu-overlay"
-          className="fixed inset-0 z-50 flex min-h-screen flex-col bg-black/95 px-5 py-4 text-[var(--signal)] backdrop-blur-md"
+          className="fixed inset-0 z-50 flex h-dvh min-h-[100svh] flex-col overflow-y-auto overscroll-none bg-black/95 px-5 text-[var(--signal)] backdrop-blur-md"
+          style={{
+            paddingTop: 'max(env(safe-area-inset-top), 1rem)',
+            paddingBottom: 'max(env(safe-area-inset-bottom), 1rem)',
+          }}
         >
           <div className="mx-auto flex w-full max-w-7xl justify-end">
             <button

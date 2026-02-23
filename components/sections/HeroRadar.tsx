@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import MatrixWordTicker from './MatrixWordTicker';
+import StyledDropdown from './StyledDropdown';
 
 const MOVEMENT_WORDS = ['CITIES', 'CREWS', 'ARTISTS', 'LISTENERS', 'PROMOTERS', 'INSTITUTIONS'];
 const EVENT_HEADLINE = '1.–3. 10. 2026 BRNO';
@@ -19,6 +20,7 @@ const STORAGE_KEY = 'reconnect-hero-text-controls-v1';
 const STORAGE_EVENT = 'reconnect-hero-text-controls-updated';
 const SHARED_SETTINGS_ENDPOINT = '/api/hero-text-style';
 const OVERLAY_VIDEO_OPTIONS_ENDPOINT = '/api/composer-export?scope=all';
+const OVERLAY_SOURCE_VIDEO_PATTERN = /^1920_.+\.mp4$/i;
 const DEFAULT_THEME_COLOR = '#39ff14';
 const FILL_STROKE_MODES = ['fill', 'stroke', 'fill-stroke'] as const;
 const TEXT_TRANSFORMS = ['none', 'uppercase', 'lowercase', 'capitalize'] as const;
@@ -29,6 +31,13 @@ const OVERLAY_BLEND_MODES = ['screen', 'overlay', 'lighten', 'soft-light', 'mult
 type OverlayBlendMode = (typeof OVERLAY_BLEND_MODES)[number];
 const DEFAULT_OVERLAY_BLEND_MODE: OverlayBlendMode = 'screen';
 const DEFAULT_OVERLAY_OPACITY = 0.6;
+const HERO_STYLE_OPTIONS = [
+  { value: 'graphic', label: 'Graphic' },
+  { value: 'photo', label: 'Photo' },
+  { value: 'overlay', label: 'Overlay' },
+] as const;
+type HeroStyleMode = (typeof HERO_STYLE_OPTIONS)[number]['value'];
+const DEFAULT_HERO_STYLE_MODE: HeroStyleMode = 'overlay';
 type TextControls = {
   fontFamily: string;
   color: string;
@@ -277,6 +286,10 @@ function normalizeOverlayVideoItem(item: unknown): OverlayVideoItem | null {
   };
 }
 
+function isOverlaySourceVideoAllowed(filename: string) {
+  return OVERLAY_SOURCE_VIDEO_PATTERN.test(filename);
+}
+
 function hexToRgbTriplet(hexColor: string) {
   const normalized = normalizeThemeColor(hexColor, DEFAULT_THEME_COLOR);
   const r = Number.parseInt(normalized.slice(1, 3), 16);
@@ -482,17 +495,13 @@ function TextStyleControls({
       <div className="grid gap-2 sm:grid-cols-2">
         <label className="flex flex-col gap-1 text-[10px] uppercase tracking-[0.15em]">
           Font
-          <select
-            className="rounded border border-[rgb(var(--signal-rgb)/0.35)] bg-black/80 px-2 py-1 text-xs normal-case"
+          <StyledDropdown
             value={controls.fontFamily}
-            onChange={(event) => onChange('fontFamily', event.target.value)}
-          >
-            {FONT_OPTIONS.map((font) => (
-              <option key={font.value} value={font.value}>
-                {font.label}
-              </option>
-            ))}
-          </select>
+            onChange={(value) => onChange('fontFamily', value)}
+            options={FONT_OPTIONS.map((font) => ({ value: font.value, label: font.label }))}
+            tone="dark"
+            className="w-full min-w-0"
+          />
         </label>
 
         <label className="flex flex-col gap-1 text-[10px] uppercase tracking-[0.15em]">
@@ -507,17 +516,16 @@ function TextStyleControls({
 
         <label className="flex flex-col gap-1 text-[10px] uppercase tracking-[0.15em]">
           Fill / Stroke
-          <select
-            className="rounded border border-[rgb(var(--signal-rgb)/0.35)] bg-black/80 px-2 py-1 text-xs normal-case"
+          <StyledDropdown
             value={controls.mode}
-            onChange={(event) => onChange('mode', event.target.value)}
-          >
-            {FILL_STROKE_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+            onChange={(value) => onChange('mode', value)}
+            options={FILL_STROKE_OPTIONS.map((option) => ({
+              value: option.value,
+              label: option.label,
+            }))}
+            tone="dark"
+            className="w-full min-w-0"
+          />
         </label>
 
         <label className="flex flex-col gap-1 text-[10px] uppercase tracking-[0.15em]">
@@ -578,17 +586,16 @@ function TextStyleControls({
 
         <label className="flex flex-col gap-1 text-[10px] uppercase tracking-[0.15em] sm:col-span-2">
           Text Transform
-          <select
-            className="rounded border border-[rgb(var(--signal-rgb)/0.35)] bg-black/80 px-2 py-1 text-xs normal-case"
+          <StyledDropdown
             value={controls.textTransform}
-            onChange={(event) => onChange('textTransform', event.target.value)}
-          >
-            {TEXT_TRANSFORM_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+            onChange={(value) => onChange('textTransform', value)}
+            options={TEXT_TRANSFORM_OPTIONS.map((option) => ({
+              value: option.value,
+              label: option.label,
+            }))}
+            tone="dark"
+            className="w-full min-w-0"
+          />
         </label>
       </div>
     </fieldset>
@@ -616,6 +623,7 @@ export default function HeroRadar({ controlsEnabled = true }: { controlsEnabled?
   const [overlayVideoInput, setOverlayVideoInput] = useState(DEFAULT_HERO_OVERLAY_VIDEO);
   const [overlayVideoOptions, setOverlayVideoOptions] = useState<OverlayVideoItem[]>([]);
   const [isOverlayPlaybackReady, setIsOverlayPlaybackReady] = useState(false);
+  const [presentationHeroStyle, setPresentationHeroStyle] = useState<HeroStyleMode>(DEFAULT_HERO_STYLE_MODE);
   const [isHydrated, setIsHydrated] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
   const lastSyncedPayloadRef = useRef('');
@@ -771,6 +779,45 @@ export default function HeroRadar({ controlsEnabled = true }: { controlsEnabled?
     () => (highlightMode === 'theme' ? effectiveThemeColor : highlightColor),
     [effectiveThemeColor, highlightColor, highlightMode],
   );
+  const effectiveHeroStyle = useMemo<HeroStyleMode>(
+    () => (controlsEnabled ? 'overlay' : presentationHeroStyle),
+    [controlsEnabled, presentationHeroStyle],
+  );
+  const heroPhotoOpacity = useMemo(
+    () => (effectiveHeroStyle === 'graphic' ? 0 : 1),
+    [effectiveHeroStyle],
+  );
+  const heroOverlayStyle = useMemo(
+    () => ({
+      mixBlendMode: controlsEnabled
+        ? overlayBlendMode
+        : effectiveHeroStyle === 'overlay'
+          ? ('multiply' as const)
+          : ('normal' as const),
+      opacity: controlsEnabled
+        ? isOverlayPlaybackReady
+          ? overlayOpacity
+          : 0
+        : effectiveHeroStyle === 'photo'
+          ? 0
+          : isOverlayPlaybackReady
+            ? 1
+            : 0,
+      visibility:
+        controlsEnabled || effectiveHeroStyle !== 'photo'
+          ? isOverlayPlaybackReady
+            ? ('visible' as const)
+            : ('hidden' as const)
+          : ('hidden' as const),
+    }),
+    [
+      controlsEnabled,
+      effectiveHeroStyle,
+      isOverlayPlaybackReady,
+      overlayBlendMode,
+      overlayOpacity,
+    ],
+  );
   const visibleHeroSlide = useMemo(() => {
     if (heroSlides.length === 0) return -1;
     if (loadedHeroSlides.has(heroSlides[activeHeroSlide])) return activeHeroSlide;
@@ -779,15 +826,18 @@ export default function HeroRadar({ controlsEnabled = true }: { controlsEnabled?
   }, [activeHeroSlide, heroSlides, loadedHeroSlides]);
   const overlayVideoSelectOptions = useMemo(() => {
     const options = new Map<string, string>();
-    options.set(DEFAULT_HERO_OVERLAY_VIDEO, DEFAULT_HERO_OVERLAY_VIDEO.replace('/exports/', ''));
     overlayVideoOptions.forEach((item) => {
       options.set(item.url, item.filename);
     });
-    if (!options.has(overlayVideo)) {
-      options.set(overlayVideo, overlayVideo.replace('/exports/', ''));
-    }
     return Array.from(options.entries()).map(([url, filename]) => ({ url, filename }));
-  }, [overlayVideo, overlayVideoOptions]);
+  }, [overlayVideoOptions]);
+  const selectedOverlayVideoOption = useMemo(
+    () =>
+      overlayVideoSelectOptions.some((item) => item.url === overlayVideo)
+        ? overlayVideo
+        : '',
+    [overlayVideo, overlayVideoSelectOptions],
+  );
   const applyOverlayVideoInput = useCallback(() => {
     setOverlayVideo(normalizeOverlayVideoSource(overlayVideoInput));
   }, [overlayVideoInput]);
@@ -961,9 +1011,10 @@ export default function HeroRadar({ controlsEnabled = true }: { controlsEnabled?
               .map((item: unknown) => normalizeOverlayVideoItem(item))
               .filter(Boolean) as OverlayVideoItem[]
           : [];
+        const filteredItems = items.filter((item) => isOverlaySourceVideoAllowed(item.filename));
 
         if (!cancelled) {
-          setOverlayVideoOptions(items);
+          setOverlayVideoOptions(filteredItems);
         }
       } catch {
         if (!cancelled) {
@@ -1102,9 +1153,8 @@ export default function HeroRadar({ controlsEnabled = true }: { controlsEnabled?
             key={src}
             src={src}
             alt=""
-            className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${
-              index === visibleHeroSlide ? 'opacity-100' : 'opacity-0'
-            }`}
+            className="absolute inset-0 h-full w-full object-cover transition-opacity duration-500"
+            style={{ opacity: index === visibleHeroSlide ? heroPhotoOpacity : 0 }}
             onLoad={() =>
               setLoadedHeroSlides((current) => {
                 if (current.has(src)) return current;
@@ -1122,11 +1172,7 @@ export default function HeroRadar({ controlsEnabled = true }: { controlsEnabled?
         <video
           ref={overlayVideoRef}
           className="hero-overlay-video pointer-events-none absolute inset-0 h-full w-full select-none object-cover"
-          style={{
-            mixBlendMode: overlayBlendMode,
-            opacity: isOverlayPlaybackReady ? overlayOpacity : 0,
-            visibility: isOverlayPlaybackReady ? 'visible' : 'hidden',
-          }}
+          style={heroOverlayStyle}
           src={overlayVideo}
           autoPlay
           loop
@@ -1176,17 +1222,23 @@ export default function HeroRadar({ controlsEnabled = true }: { controlsEnabled?
             <div className="grid gap-2 sm:grid-cols-2">
               <label className="flex flex-col gap-1 text-[10px] uppercase tracking-[0.15em] sm:col-span-2">
                 Source Video
-                <select
-                  className="rounded border border-[rgb(var(--signal-rgb)/0.35)] bg-black/80 px-2 py-1 text-xs normal-case"
-                  value={overlayVideo}
-                  onChange={(event) => setOverlayVideo(normalizeOverlayVideoSource(event.target.value))}
-                >
-                  {overlayVideoSelectOptions.map((item) => (
-                    <option key={item.url} value={item.url}>
-                      {item.filename}
-                    </option>
-                  ))}
-                </select>
+                <StyledDropdown
+                  value={selectedOverlayVideoOption}
+                  onChange={(value) => {
+                    if (!value) return;
+                    setOverlayVideo(normalizeOverlayVideoSource(value));
+                  }}
+                  options={
+                    overlayVideoSelectOptions.length
+                      ? overlayVideoSelectOptions.map((item) => ({
+                          value: item.url,
+                          label: item.filename,
+                        }))
+                      : [{ value: '', label: 'No 1920 exports found' }]
+                  }
+                  tone="dark"
+                  className="w-full min-w-0"
+                />
               </label>
               <label className="flex flex-col gap-1 text-[10px] uppercase tracking-[0.15em] sm:col-span-2">
                 Path (in /exports)
@@ -1218,17 +1270,16 @@ export default function HeroRadar({ controlsEnabled = true }: { controlsEnabled?
               </label>
               <label className="flex flex-col gap-1 text-[10px] uppercase tracking-[0.15em] sm:col-span-2">
                 Blend Mode
-                <select
-                  className="rounded border border-[rgb(var(--signal-rgb)/0.35)] bg-black/80 px-2 py-1 text-xs normal-case"
+                <StyledDropdown
                   value={overlayBlendMode}
-                  onChange={(event) => setOverlayBlendMode(normalizeOverlayBlendMode(event.target.value))}
-                >
-                  {OVERLAY_BLEND_MODES.map((mode) => (
-                    <option key={mode} value={mode}>
-                      {mode}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(value) => setOverlayBlendMode(normalizeOverlayBlendMode(value))}
+                  options={OVERLAY_BLEND_MODES.map((mode) => ({
+                    value: mode,
+                    label: mode,
+                  }))}
+                  tone="dark"
+                  className="w-full min-w-0"
+                />
               </label>
               <label className="flex flex-col gap-1 text-[10px] uppercase tracking-[0.15em] sm:col-span-2">
                 Overlay Opacity ({Math.round(overlayOpacity * 100)}%)
@@ -1322,22 +1373,37 @@ export default function HeroRadar({ controlsEnabled = true }: { controlsEnabled?
       {!controlsEnabled ? (
         <div className="pointer-events-auto absolute bottom-4 left-1/2 z-20 -translate-x-1/2">
           <div className="rounded border border-[rgb(var(--signal-rgb)/0.6)] bg-black/70 px-2 py-1.5 backdrop-blur-sm">
-            <div className="flex items-center gap-1.5">
-              {PRESENTATION_THEME_OVERRIDES.map((color) => (
-                <button
-                  key={color}
-                  type="button"
-                  onClick={() => setPresentationThemeOverride(color)}
-                  className={`h-5 w-5 rounded border ${
-                    effectiveThemeColor === color
-                      ? 'border-[rgb(var(--signal-rgb)/0.95)]'
-                      : 'border-[rgb(var(--signal-rgb)/0.45)]'
-                  }`}
-                  style={{ backgroundColor: color }}
-                  title={color}
-                  aria-label={`Set presentation theme color ${color}`}
+            <div className="flex flex-wrap items-end gap-2">
+              <div className="flex items-center gap-1.5">
+                {PRESENTATION_THEME_OVERRIDES.map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    onClick={() => setPresentationThemeOverride(color)}
+                    className={`h-5 w-5 rounded border ${
+                      effectiveThemeColor === color
+                        ? 'border-[rgb(var(--signal-rgb)/0.95)]'
+                        : 'border-[rgb(var(--signal-rgb)/0.45)]'
+                    }`}
+                    style={{ backgroundColor: color }}
+                    title={color}
+                    aria-label={`Set presentation theme color ${color}`}
+                  />
+                ))}
+              </div>
+              <label className="flex min-w-[150px] flex-col gap-1 text-[9px] uppercase tracking-[0.15em] text-[var(--signal)]">
+                Hero Style
+                <StyledDropdown
+                  value={presentationHeroStyle}
+                  onChange={(value) => setPresentationHeroStyle(value as HeroStyleMode)}
+                  options={HERO_STYLE_OPTIONS.map((option) => ({
+                    value: option.value,
+                    label: option.label,
+                  }))}
+                  tone="dark"
+                  className="min-w-[150px]"
                 />
-              ))}
+              </label>
             </div>
           </div>
         </div>

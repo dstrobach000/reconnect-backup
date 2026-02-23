@@ -191,7 +191,7 @@ function getForcedLayerMotionState(layer, timeSeconds, loopSeconds, globalMotion
       const maxGap = Math.max(0, layer.armLength - 1);
       const minAnimatedGap = clampNumber(layer.armGap * 0.22, minGap, maxGap);
       const maxAnimatedGap = clampNumber(Math.max(layer.armGap * 1.85, layer.armGap + 3), minGap, maxGap);
-      overrideArmGap = minAnimatedGap + (maxAnimatedGap - minAnimatedGap) * phase;
+      overrideArmGap = minAnimatedGap + (maxAnimatedGap - minAnimatedGap) * tri;
       return;
     }
     if (layer.type === 'cross' && motion === 'cross-arm-length') {
@@ -199,7 +199,7 @@ function getForcedLayerMotionState(layer, timeSeconds, loopSeconds, globalMotion
       const maxLength = Math.max(minLength + 0.5, Math.min(44, layer.armLength * 1.5));
       const minAnimatedLength = clampNumber(Math.max(layer.armLength * 0.45, layer.armGap + 1), minLength, maxLength);
       const maxAnimatedLength = clampNumber(Math.max(layer.armLength * 1.45, minAnimatedLength + 1), minLength, maxLength);
-      overrideArmLength = minAnimatedLength + (maxAnimatedLength - minAnimatedLength) * phase;
+      overrideArmLength = minAnimatedLength + (maxAnimatedLength - minAnimatedLength) * tri;
       return;
     }
     if (layer.type === 'cross' && motion === 'cross-arm-morph') {
@@ -256,7 +256,11 @@ function getLayerSizeScale(layerIndex, totalLayers, layerSizeRatio) {
   if (totalLayers <= 1) return 1;
   const pivot = (totalLayers - 1) * 0.5;
   const exponent = layerIndex - pivot;
-  const scaled = Math.pow(layerSizeRatio, exponent);
+  let scaled = Math.pow(layerSizeRatio, exponent);
+  // For odd layer counts, avoid locking the center layer at scale=1.
+  if (totalLayers % 2 === 1 && Math.abs(exponent) < 0.0001) {
+    scaled *= Math.pow(layerSizeRatio, 0.5);
+  }
   return clampNumber(scaled, 0.2, 4);
 }
 
@@ -300,6 +304,80 @@ function getLayerExtent(layer, masterStrokeWidth) {
   }
 
   return 1;
+}
+
+function estimateEffectPad(effect, strength, detail) {
+  if (effect === 'pixelate') {
+    return 0.12 + strength * (0.9 + detail * 2.2);
+  }
+  if (effect === 'blur') {
+    const std = 0.08 + strength * (1.2 + detail * 4);
+    return std * 2.6;
+  }
+  if (effect === 'glow') {
+    const std = 0.08 + strength * (0.8 + detail * 2.4);
+    return std * 2.8;
+  }
+  return 0;
+}
+
+function estimatePostFxPad(recipe) {
+  let pad = 0;
+
+  if (recipe.masterParticlesEnabled) {
+    const particleStrength = recipe.masterParticlesStrength ?? 0.55;
+    const particleDetail = recipe.masterParticlesDetail ?? 0.6;
+    const particleRadius = 0.06 + particleStrength * (0.45 + particleDetail * 1.15);
+    const circlePad = recipe.masterParticleShape === 'circle'
+      ? 0.15 + particleRadius * 0.7
+      : 0;
+    pad += particleRadius + circlePad;
+  }
+
+  pad += estimateEffectPad(
+    recipe.masterRenderEffect,
+    recipe.masterRenderStrength,
+    recipe.masterRenderDetail,
+  );
+  pad += estimateEffectPad(
+    recipe.masterRenderEffectSecondary,
+    recipe.masterRenderStrengthSecondary,
+    recipe.masterRenderDetailSecondary,
+  );
+
+  // Small fixed safety guard for rasterized/threshold edges.
+  pad += 0.8;
+
+  return pad;
+}
+
+function layerHasMotion(layer, motion) {
+  return layer.motion === motion || layer.motionSecondary === motion;
+}
+
+function estimateLayerMotionScaleMax(layer) {
+  let multiplier = 1;
+  if (layerHasMotion(layer, 'pulse')) multiplier *= 1.14;
+  if (layerHasMotion(layer, 'infinite-zoom')) multiplier *= 1.08;
+  if (layer.type === 'cross' && (layerHasMotion(layer, 'cross-arm-length') || layerHasMotion(layer, 'cross-arm-morph'))) {
+    multiplier *= 1.45;
+  }
+  return multiplier;
+}
+
+function estimateMasterScaleMax(recipe) {
+  if (recipe.masterMotion === 'pulse') return 1.07;
+  if (recipe.masterMotion === 'infinite-zoom') return 1.22;
+  return 1;
+}
+
+function estimateFeedbackScaleMax(recipe) {
+  const feedbackCount = Math.max(0, recipe.masterFeedback ?? 0);
+  let maxScale = 1 + feedbackCount * 0.08;
+  if (feedbackCount > 0 && recipe.feedbackLfoEnabled) {
+    maxScale += clampNumber(recipe.feedbackLfoDepth ?? 0, 0, 1) * 0.34;
+  }
+  return maxScale;
 }
 
 function getCrossArmCoordinates(direction, armGap, armLength) {
@@ -633,7 +711,30 @@ export default function SymbolComposerCanvas({
     () => (hasMounted ? { filterRes: String(safeFilterResolution) } : {}),
     [hasMounted, safeFilterResolution],
   );
-  const totalLayers = normalizedRecipe.layers.length;
+  const sceneFilterProps = useMemo(
+    () => ({
+      filterUnits: 'userSpaceOnUse',
+      primitiveUnits: 'userSpaceOnUse',
+      x: '-80',
+      y: '-80',
+      width: '260',
+      height: '260',
+    }),
+    [],
+  );
+  const { enabledLayerOrderByIndex, enabledLayerCount } = useMemo(() => {
+    const orderByIndex = normalizedRecipe.layers.map(() => -1);
+    let enabledOrder = 0;
+    normalizedRecipe.layers.forEach((layer, layerIndex) => {
+      if (!layer.enabled) return;
+      orderByIndex[layerIndex] = enabledOrder;
+      enabledOrder += 1;
+    });
+    return {
+      enabledLayerOrderByIndex: orderByIndex,
+      enabledLayerCount: Math.max(1, enabledOrder),
+    };
+  }, [normalizedRecipe.layers]);
   const layerColor = normalizedRecipe.inverted ? '#000000' : '#ffffff';
   const primaryEffectStrength = normalizedRecipe.masterRenderStrength;
   const primaryEffectDetail = normalizedRecipe.masterRenderDetail;
@@ -643,10 +744,10 @@ export default function SymbolComposerCanvas({
   const particlesDetail = normalizedRecipe.masterParticlesDetail;
   const grainStrength = normalizedRecipe.masterGrainStrength;
   const grainDetail = normalizedRecipe.masterGrainDetail;
-  const buildThresholdTable = (strength, detail) => {
+  const buildThresholdTable = (detail) => {
     const steps = 24;
-    const cutoff = clampNumber(0.1 + strength * 0.8, 0.05, 0.95);
-    const softness = clampNumber((1 - detail) * 0.22, 0, 0.25);
+    const cutoff = clampNumber(0.12 + detail * 0.82, 0.02, 0.99);
+    const softness = clampNumber((1 - detail) * 0.12, 0, 0.14);
     return Array.from({ length: steps }, (_, index) => {
       const t = index / (steps - 1);
       if (t <= cutoff - softness) return '0';
@@ -655,8 +756,12 @@ export default function SymbolComposerCanvas({
       return normalized.toFixed(3);
     }).join(' ');
   };
-  const thresholdTableA = buildThresholdTable(primaryEffectStrength, primaryEffectDetail);
-  const thresholdTableB = buildThresholdTable(secondaryEffectStrength, secondaryEffectDetail);
+  const thresholdTableA = buildThresholdTable(primaryEffectDetail);
+  const thresholdTableB = buildThresholdTable(secondaryEffectDetail);
+  const thresholdMixA = clampNumber(primaryEffectStrength, 0, 1);
+  const thresholdMixB = clampNumber(secondaryEffectStrength, 0, 1);
+  const thresholdSourceMixA = clampNumber(1 - thresholdMixA, 0, 1);
+  const thresholdSourceMixB = clampNumber(1 - thresholdMixB, 0, 1);
   const posterizeStepsA = Math.max(2, Math.round(2 + primaryEffectDetail * 14));
   const posterizeTableA = Array.from({ length: posterizeStepsA }, (_, index) =>
     (index / Math.max(1, posterizeStepsA - 1)).toFixed(3),
@@ -739,14 +844,19 @@ export default function SymbolComposerCanvas({
 
     normalizedRecipe.layers.forEach((layer, layerIndex) => {
       if (!layer.enabled) return;
-      const layerScale = getLayerSizeScale(layerIndex, totalLayers, layerSizeRatioFit);
+      const enabledLayerIndex = enabledLayerOrderByIndex[layerIndex];
+      const layerScale = getLayerSizeScale(
+        enabledLayerIndex < 0 ? 0 : enabledLayerIndex,
+        enabledLayerCount,
+        layerSizeRatioFit,
+      );
       const layerExtent = getLayerExtent(layer, normalizedRecipe.masterStrokeWidth) * layerScale;
       maxExtent = Math.max(maxExtent, layerExtent);
     });
 
     const fitScale = 48 / Math.max(1, maxExtent);
     return clampNumber(fitScale * normalizedRecipe.masterSize, 0.1, 12);
-  }, [normalizedRecipe, totalLayers, layerSizeRatioFit]);
+  }, [normalizedRecipe, enabledLayerOrderByIndex, enabledLayerCount, layerSizeRatioFit]);
   const globalMotionSpeed = clampNumber(normalizedRecipe.masterSpeed, 1, 24);
   const forcedTimeSecondsSafe = Math.max(0, forceTimeSeconds || 0);
   const forcedMasterMotionTransform = isForcedTimeMode
@@ -801,61 +911,49 @@ export default function SymbolComposerCanvas({
         normalizedRecipe.masterMotionSpeed * globalMotionSpeed,
       );
       const masterTarget = '[data-master-motion]';
+      const masterNodes = gsap.utils.toArray<SVGGElement>(masterTarget);
+      const setMasterTransform = (phase) => {
+        const wrapped = ((phase % 1) + 1) % 1;
+        const tri = wrapped < 0.5 ? wrapped * 2 : (1 - wrapped) * 2;
+        let rotate = 0;
+        let scale = 1;
 
-      if (normalizedRecipe.masterMotion === 'rotate') {
-        gsap.to(masterTarget, {
-          rotate: 360,
+        if (normalizedRecipe.masterMotion === 'rotate') {
+          rotate = wrapped * 360;
+        } else if (normalizedRecipe.masterMotion === 'counter-rotate') {
+          rotate = -wrapped * 360;
+        } else if (normalizedRecipe.masterMotion === 'pulse') {
+          scale = 1 + 0.07 * tri;
+        } else if (normalizedRecipe.masterMotion === 'sweep') {
+          rotate = 24 * tri;
+        } else if (normalizedRecipe.masterMotion === 'infinite-zoom') {
+          scale = 1 + 0.22 * wrapped;
+        }
+
+        const shouldClear = Math.abs(rotate) < 0.0001 && Math.abs(scale - 1) < 0.0001;
+        masterNodes.forEach((node) => {
+          if (shouldClear) {
+            node.removeAttribute('transform');
+            return;
+          }
+          node.setAttribute(
+            'transform',
+            `translate(50 50) rotate(${rotate}) scale(${scale}) translate(-50 -50)`,
+          );
+        });
+      };
+
+      if (normalizedRecipe.masterMotion === 'none') {
+        setMasterTransform(0);
+      } else {
+        const state = { phase: 0 };
+        setMasterTransform(0);
+        gsap.to(state, {
+          phase: 1,
           duration: masterCycleDuration,
           repeat: -1,
           ease: 'none',
-          svgOrigin: '50 50',
-        });
-      } else if (normalizedRecipe.masterMotion === 'counter-rotate') {
-        gsap.to(masterTarget, {
-          rotate: -360,
-          duration: masterCycleDuration,
-          repeat: -1,
-          ease: 'none',
-          svgOrigin: '50 50',
-        });
-      } else if (normalizedRecipe.masterMotion === 'pulse') {
-        const halfCycleDuration = getLoopSyncedYoyoHalfDuration(
-          normalizedRecipe.loopSeconds,
-          masterCycleDuration * 0.5,
-        );
-        gsap.to(masterTarget, {
-          scale: 1.07,
-          duration: halfCycleDuration,
-          repeat: -1,
-          yoyo: true,
-          ease: 'sine.inOut',
-          svgOrigin: '50 50',
-        });
-      } else if (normalizedRecipe.masterMotion === 'sweep') {
-        const halfCycleDuration = getLoopSyncedYoyoHalfDuration(
-          normalizedRecipe.loopSeconds,
-          masterCycleDuration * 0.5,
-        );
-        gsap.to(masterTarget, {
-          rotate: 24,
-          duration: halfCycleDuration,
-          repeat: -1,
-          yoyo: true,
-          ease: 'sine.inOut',
-          svgOrigin: '50 50',
-        });
-      } else if (normalizedRecipe.masterMotion === 'infinite-zoom') {
-        gsap.set(masterTarget, {
-          svgOrigin: '50 50',
-          scale: 1,
-        });
-        gsap.fromTo(masterTarget, {
-          scale: 1,
-        }, {
-          scale: 1.22,
-          duration: masterCycleDuration,
-          repeat: -1,
-          ease: 'none',
+          onUpdate: () => setMasterTransform(state.phase),
         });
       }
 
@@ -930,7 +1028,12 @@ export default function SymbolComposerCanvas({
 
             layerSizeTargets.forEach((node) => {
               const layerIndex = Number(node.getAttribute('data-layer-size-index')) || 0;
-              const nextScale = getLayerSizeScale(layerIndex, totalLayers, animatedRatio);
+              const enabledLayerIndex = enabledLayerOrderByIndex[layerIndex];
+              const nextScale = getLayerSizeScale(
+                enabledLayerIndex < 0 ? 0 : enabledLayerIndex,
+                enabledLayerCount,
+                animatedRatio,
+              );
               node.setAttribute('transform', `scale(${nextScale})`);
             });
           };
@@ -1013,9 +1116,9 @@ export default function SymbolComposerCanvas({
             const maxAnimatedGap = clampNumber(Math.max(layer.armGap * 1.85, layer.armGap + 3), minGap, maxGap);
             const minAnimatedLength = clampNumber(Math.max(layer.armLength * 0.45, layer.armGap + 1), minLength, maxLength);
             const maxAnimatedLength = clampNumber(Math.max(layer.armLength * 1.45, minAnimatedLength + 1), minLength, maxLength);
-            const duration = getLoopSyncedDuration(
+            const halfCycleDuration = getLoopSyncedYoyoHalfDuration(
               normalizedRecipe.loopSeconds,
-              layerCycleDuration * 0.62,
+              layerCycleDuration * 0.5,
             );
 
             gsap.fromTo(state, {
@@ -1024,8 +1127,9 @@ export default function SymbolComposerCanvas({
             }, {
               gap: hasCrossGapMotion ? maxAnimatedGap : layer.armGap,
               length: hasCrossLengthMotion ? maxAnimatedLength : layer.armLength,
-              duration,
+              duration: halfCycleDuration,
               repeat: -1,
+              yoyo: true,
               ease: 'sine.inOut',
               onUpdate: updateCrossArms,
             });
@@ -1212,7 +1316,7 @@ export default function SymbolComposerCanvas({
         gsap.ticker.fps(previousFps);
       }
     };
-  }, [animate, normalizedRecipe, safeFpsCap, isForcedTimeMode]);
+  }, [animate, normalizedRecipe, safeFpsCap, isForcedTimeMode, enabledLayerOrderByIndex, enabledLayerCount]);
 
   return (
     <div
@@ -1247,16 +1351,30 @@ export default function SymbolComposerCanvas({
               filter={`url(#${noiseFilterId})`}
             />
           </pattern>
-          <filter {...filterProps} id={thresholdFilterAId} x="-12%" y="-12%" width="124%" height="124%">
-            <feColorMatrix type="saturate" values="0" result="mono" />
-            <feComponentTransfer in="mono">
-              <feFuncR type="discrete" tableValues={thresholdTableA} />
-              <feFuncG type="discrete" tableValues={thresholdTableA} />
-              <feFuncB type="discrete" tableValues={thresholdTableA} />
+          <filter {...sceneFilterProps} id={thresholdFilterAId}>
+            <feColorMatrix
+              in="SourceGraphic"
+              type="matrix"
+              values="0.2126 0.7152 0.0722 0 0 0.2126 0.7152 0.0722 0 0 0.2126 0.7152 0.0722 0 0 0 0 0 1 0"
+              result="thresholdLumaA"
+            />
+            <feComponentTransfer in="thresholdLumaA" result="thresholdA">
+              <feFuncR type="table" tableValues={thresholdTableA} />
+              <feFuncG type="table" tableValues={thresholdTableA} />
+              <feFuncB type="table" tableValues={thresholdTableA} />
               <feFuncA type="discrete" tableValues={thresholdTableA} />
             </feComponentTransfer>
+            <feComposite
+              in="SourceGraphic"
+              in2="thresholdA"
+              operator="arithmetic"
+              k1="0"
+              k2={thresholdSourceMixA.toFixed(3)}
+              k3={thresholdMixA.toFixed(3)}
+              k4="0"
+            />
           </filter>
-          <filter {...filterProps} id={posterizeFilterAId} x="-12%" y="-12%" width="124%" height="124%">
+          <filter {...sceneFilterProps} id={posterizeFilterAId}>
             <feColorMatrix type="saturate" values="0" result="mono" />
             <feComponentTransfer in="mono">
               <feFuncR type="discrete" tableValues={posterizeTableA} />
@@ -1264,24 +1382,24 @@ export default function SymbolComposerCanvas({
               <feFuncB type="discrete" tableValues={posterizeTableA} />
             </feComponentTransfer>
           </filter>
-          <filter {...filterProps} id={pixelateFilterAId} x="-14%" y="-14%" width="128%" height="128%">
+          <filter {...sceneFilterProps} id={pixelateFilterAId}>
             <feMorphology in="SourceGraphic" operator="dilate" radius={pixelRadiusA} result="chunkA" />
             <feMorphology in="chunkA" operator="erode" radius={pixelRadiusA} result="pixelA" />
             <feComponentTransfer in="pixelA">
               <feFuncA type="discrete" tableValues="0 0.25 0.5 0.75 1" />
             </feComponentTransfer>
           </filter>
-          <filter {...filterProps} id={glowFilterAId} x="-22%" y="-22%" width="144%" height="144%">
+          <filter {...sceneFilterProps} id={glowFilterAId}>
             <feGaussianBlur stdDeviation={glowBlurA} result="blur" />
             <feMerge>
               <feMergeNode in="blur" />
               <feMergeNode in="SourceGraphic" />
             </feMerge>
           </filter>
-          <filter {...filterProps} id={blurFilterAId} x="-20%" y="-20%" width="140%" height="140%">
+          <filter {...sceneFilterProps} id={blurFilterAId}>
             <feGaussianBlur stdDeviation={blurStdDevA} />
           </filter>
-          <filter {...filterProps} id={particlesFilterPreId} x="-18%" y="-18%" width="136%" height="136%">
+          <filter {...sceneFilterProps} id={particlesFilterPreId}>
             <feTurbulence
               type="turbulence"
               baseFrequency={particleFrequency}
@@ -1310,7 +1428,7 @@ export default function SymbolComposerCanvas({
               <feMorphology in="particleCut" operator="dilate" radius={particleRadius} />
             )}
           </filter>
-          <filter {...filterProps} id={grainFilterPreId} x="-16%" y="-16%" width="132%" height="132%">
+          <filter {...sceneFilterProps} id={grainFilterPreId}>
             <feTurbulence
               type="fractalNoise"
               baseFrequency={grainFrequency}
@@ -1325,16 +1443,30 @@ export default function SymbolComposerCanvas({
             </feComponentTransfer>
             <feBlend in="SourceGraphic" in2="grainAlpha" mode="screen" />
           </filter>
-          <filter {...filterProps} id={thresholdFilterBId} x="-12%" y="-12%" width="124%" height="124%">
-            <feColorMatrix type="saturate" values="0" result="mono" />
-            <feComponentTransfer in="mono">
-              <feFuncR type="discrete" tableValues={thresholdTableB} />
-              <feFuncG type="discrete" tableValues={thresholdTableB} />
-              <feFuncB type="discrete" tableValues={thresholdTableB} />
+          <filter {...sceneFilterProps} id={thresholdFilterBId}>
+            <feColorMatrix
+              in="SourceGraphic"
+              type="matrix"
+              values="0.2126 0.7152 0.0722 0 0 0.2126 0.7152 0.0722 0 0 0.2126 0.7152 0.0722 0 0 0 0 0 1 0"
+              result="thresholdLumaB"
+            />
+            <feComponentTransfer in="thresholdLumaB" result="thresholdB">
+              <feFuncR type="table" tableValues={thresholdTableB} />
+              <feFuncG type="table" tableValues={thresholdTableB} />
+              <feFuncB type="table" tableValues={thresholdTableB} />
               <feFuncA type="discrete" tableValues={thresholdTableB} />
             </feComponentTransfer>
+            <feComposite
+              in="SourceGraphic"
+              in2="thresholdB"
+              operator="arithmetic"
+              k1="0"
+              k2={thresholdSourceMixB.toFixed(3)}
+              k3={thresholdMixB.toFixed(3)}
+              k4="0"
+            />
           </filter>
-          <filter {...filterProps} id={posterizeFilterBId} x="-12%" y="-12%" width="124%" height="124%">
+          <filter {...sceneFilterProps} id={posterizeFilterBId}>
             <feColorMatrix type="saturate" values="0" result="mono" />
             <feComponentTransfer in="mono">
               <feFuncR type="discrete" tableValues={posterizeTableB} />
@@ -1342,21 +1474,21 @@ export default function SymbolComposerCanvas({
               <feFuncB type="discrete" tableValues={posterizeTableB} />
             </feComponentTransfer>
           </filter>
-          <filter {...filterProps} id={pixelateFilterBId} x="-14%" y="-14%" width="128%" height="128%">
+          <filter {...sceneFilterProps} id={pixelateFilterBId}>
             <feMorphology in="SourceGraphic" operator="dilate" radius={pixelRadiusB} result="chunkB" />
             <feMorphology in="chunkB" operator="erode" radius={pixelRadiusB} result="pixelB" />
             <feComponentTransfer in="pixelB">
               <feFuncA type="discrete" tableValues="0 0.25 0.5 0.75 1" />
             </feComponentTransfer>
           </filter>
-          <filter {...filterProps} id={glowFilterBId} x="-22%" y="-22%" width="144%" height="144%">
+          <filter {...sceneFilterProps} id={glowFilterBId}>
             <feGaussianBlur stdDeviation={glowBlurB} result="blur" />
             <feMerge>
               <feMergeNode in="blur" />
               <feMergeNode in="SourceGraphic" />
             </feMerge>
           </filter>
-          <filter {...filterProps} id={blurFilterBId} x="-20%" y="-20%" width="140%" height="140%">
+          <filter {...sceneFilterProps} id={blurFilterBId}>
             <feGaussianBlur stdDeviation={blurStdDevB} />
           </filter>
           {normalizedRecipe.masterFrameShape !== 'none' ? (
@@ -1371,24 +1503,23 @@ export default function SymbolComposerCanvas({
         </defs>
         <g clipPath={sceneClipPath}>
           <g data-master-scene transform={`translate(50 50) scale(${sceneScale}) translate(-50 -50)`}>
-            <g data-master-motion transform={forcedMasterMotionTransform}>
+            <g
+              data-render-scene-secondary
+              filter={secondaryRenderFilterId ? `url(#${secondaryRenderFilterId})` : undefined}
+            >
               <g
-                data-render-scene-secondary
-                filter={secondaryRenderFilterId ? `url(#${secondaryRenderFilterId})` : undefined}
+                data-render-scene-primary
+                filter={primaryRenderFilterId ? `url(#${primaryRenderFilterId})` : undefined}
               >
                 <g
-                  data-render-scene-primary
-                  filter={primaryRenderFilterId ? `url(#${primaryRenderFilterId})` : undefined}
+                  data-render-scene-prepass-primary={prepassFirstLabel}
+                  filter={prepassFirstFilterId ? `url(#${prepassFirstFilterId})` : undefined}
                 >
                   <g
-                    data-render-scene-prepass-primary={prepassFirstLabel}
-                    filter={prepassFirstFilterId ? `url(#${prepassFirstFilterId})` : undefined}
+                    data-render-scene-prepass-secondary={prepassSecondLabel}
+                    filter={prepassSecondFilterId ? `url(#${prepassSecondFilterId})` : undefined}
                   >
-                    <g
-                      data-render-scene-prepass-secondary={prepassSecondLabel}
-                      filter={prepassSecondFilterId ? `url(#${prepassSecondFilterId})` : undefined}
-                    >
-                      {Array.from({ length: normalizedRecipe.masterFeedback + 1 }, (_, index) => normalizedRecipe.masterFeedback - index).map((feedbackIndex) => {
+                    {Array.from({ length: normalizedRecipe.masterFeedback + 1 }, (_, index) => normalizedRecipe.masterFeedback - index).map((feedbackIndex) => {
                         const feedbackScale = 1 + feedbackIndex * 0.08;
                         const feedbackOpacity = feedbackIndex === 0 ? 1 : Math.max(0.06, 0.25 / (feedbackIndex + 1));
                         let feedbackScaleRuntime = feedbackScale;
@@ -1429,16 +1560,17 @@ export default function SymbolComposerCanvas({
                           }
                         }
 
-                        return (
-                          <g
-                            key={`feedback-${feedbackIndex}`}
-                            data-feedback-layer
-                            data-feedback-index={feedbackIndex}
-                            data-feedback-base-scale={feedbackScale}
-                            data-feedback-base-opacity={feedbackOpacity}
-                            opacity={feedbackOpacityRuntime}
-                            transform={`translate(50 50) scale(${feedbackScaleRuntime}) translate(-50 -50)`}
-                          >
+                      return (
+                        <g
+                          key={`feedback-${feedbackIndex}`}
+                          data-feedback-layer
+                          data-feedback-index={feedbackIndex}
+                          data-feedback-base-scale={feedbackScale}
+                          data-feedback-base-opacity={feedbackOpacity}
+                          opacity={feedbackOpacityRuntime}
+                          transform={`translate(50 50) scale(${feedbackScaleRuntime}) translate(-50 -50)`}
+                        >
+                          <g data-master-motion transform={forcedMasterMotionTransform}>
                             {normalizedRecipe.layers.map((layer, layerIndex) => {
                               if (!layer.enabled) return null;
                               const forcedLayerMotion = isForcedTimeMode
@@ -1450,7 +1582,12 @@ export default function SymbolComposerCanvas({
                                 )
                                 : null;
                               const layerForGlyph = forcedLayerMotion?.layerForGlyph || layer;
-                              const layerSizeScale = getLayerSizeScale(layerIndex, totalLayers, forcedLayerSizeRatio);
+                              const enabledLayerIndex = enabledLayerOrderByIndex[layerIndex];
+                              const layerSizeScale = getLayerSizeScale(
+                                enabledLayerIndex < 0 ? 0 : enabledLayerIndex,
+                                enabledLayerCount,
+                                forcedLayerSizeRatio,
+                              );
 
                               return (
                                 <g
@@ -1494,9 +1631,9 @@ export default function SymbolComposerCanvas({
                               );
                             })}
                           </g>
-                        );
-                      })}
-                    </g>
+                        </g>
+                      );
+                    })}
                   </g>
                 </g>
               </g>

@@ -29,7 +29,6 @@ export default function PresentationSectionStack() {
       <ReconnectClosingSection
         selectedDisplayFont={settings.displayFont}
         selectedSupportingFont={settings.supportingFont}
-        selectedGlyph={settings.glyph}
       />
     </>
   );

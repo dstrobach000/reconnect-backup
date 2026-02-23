@@ -14,6 +14,15 @@ const DEFAULT_LEFT_DISPLAY = 'mekanikal';
 const DEFAULT_LEFT_SUPPORTING = 'roobertmono';
 const DEFAULT_RIGHT_DISPLAY = 'hofmann';
 const DEFAULT_RIGHT_SUPPORTING = 'dazzed';
+function getComparatorHeadingClass(displayFontId: string) {
+  let mobileSizeClass = 'text-[clamp(2.25rem,11vw,3.5rem)]';
+  if (displayFontId === 'hofmann') {
+    mobileSizeClass = 'text-[clamp(1.95rem,9.2vw,2.9rem)]';
+  } else if (displayFontId === 'ofform') {
+    mobileSizeClass = 'text-[clamp(1.7rem,8.2vw,2.6rem)]';
+  }
+  return `mb-6 max-w-full overflow-hidden whitespace-nowrap leading-[0.92] ${mobileSizeClass} md:text-6xl`;
+}
 
 export default function TextComparatorSection({
   selectedDisplayFont,
@@ -31,6 +40,8 @@ export default function TextComparatorSection({
   const leftSupportingFontFamily = getSupportingFontFamily(leftSupportingFont);
   const rightDisplayFontFamily = getDisplayFontFamily(rightDisplayFont);
   const rightSupportingFontFamily = getSupportingFontFamily(rightSupportingFont);
+  const leftHeadingClass = getComparatorHeadingClass(leftDisplayFont);
+  const rightHeadingClass = getComparatorHeadingClass(rightDisplayFont);
 
   return (
     <section className="w-full border-y border-[rgb(var(--signal-rgb)/0.22)] bg-white text-black">
@@ -63,7 +74,7 @@ export default function TextComparatorSection({
                 />
               </div>
             </div>
-            <h3 className="mb-6 text-5xl leading-none md:text-6xl" style={{ fontFamily: leftDisplayFontFamily }}>
+            <h3 className={leftHeadingClass} style={{ fontFamily: leftDisplayFontFamily }}>
               RECONNECT:
             </h3>
             <p className="text-[15px] leading-[1.55] md:text-[16px]" style={{ fontFamily: leftSupportingFontFamily }}>
@@ -92,7 +103,7 @@ export default function TextComparatorSection({
                 />
               </div>
             </div>
-            <h3 className="mb-6 text-5xl leading-none md:text-6xl" style={{ fontFamily: rightDisplayFontFamily }}>
+            <h3 className={rightHeadingClass} style={{ fontFamily: rightDisplayFontFamily }}>
               RECONNECT:
             </h3>
             <p className="text-[15px] leading-[1.55] md:text-[16px]" style={{ fontFamily: rightSupportingFontFamily }}>
