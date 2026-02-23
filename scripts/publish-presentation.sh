@@ -103,7 +103,7 @@ fi
 echo "Publishing presentation-safe changes from '$COMMIT_SHA' to '$PRESENTATION_BRANCH'..."
 git switch "$PRESENTATION_BRANCH"
 
-if [[ -n "$(git status --porcelain)" ]]; then
+if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
   echo "Error: '$PRESENTATION_BRANCH' has local changes. Clean it and rerun."
   git switch "$DEV_BRANCH"
   exit 1
