@@ -7,9 +7,27 @@ This project has a local workflow agent via scripts so you can run daily operati
 From `/Users/null/Documents/Web/reconnect`:
 
 ```bash
+npm run agent:sync -- "optional dev backup message"
 npm run backup:dev -- "your commit message"
 npm run publish:presentation -- <commit-sha>
 ```
+
+## One-command mode (recommended)
+
+### `agent:sync`
+
+Script: `scripts/agent-sync.sh`
+
+Run this from `codex/dev-local` to do both steps automatically:
+
+1. Commit current changes on dev branch (if any)
+2. Push dev branch backup to `backup`
+3. Build a presentation-safe patch from the latest dev commit
+4. Apply patch to `main`
+5. Commit + push `origin/main` (deploy)
+6. Switch back to `codex/dev-local`
+
+If the latest dev commit only changes dev-only paths, it backs up but skips publish.
 
 ## What each command does
 
@@ -61,14 +79,6 @@ Use this to safely publish only presentation changes.
 ```bash
 git switch codex/dev-local
 
-# work + commit
-git add -A
-git commit -m "feat: ..."
-
-# backup dev branch
-npm run backup:dev -- "chore(dev): backup"
-
-# publish a presentation commit
-git log --oneline -n 10
-npm run publish:presentation -- <sha>
+# one command: backup + safe publish
+npm run agent:sync -- "chore(dev): daily sync"
 ```

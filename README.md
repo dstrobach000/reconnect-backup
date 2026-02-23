@@ -6,6 +6,7 @@ Starter Next.js repository with GSAP and Sanity dependencies installed.
 
 - Daily workflow (dev vs presentation): `DAILY_OPERATION_GUIDE.md`
 - One-command workflow agent: `WORKFLOW_AGENT.md`
+- Run from project root: `npm run agent:sync -- "chore(dev): daily sync"`
 ## Requirements
 
 - Node.js 20+

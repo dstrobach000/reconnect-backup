@@ -6,7 +6,8 @@
     "build": "next build",
     "start": "next start",
     "backup:dev": "bash scripts/backup-dev.sh",
-    "publish:presentation": "bash scripts/publish-presentation.sh"
+    "publish:presentation": "bash scripts/publish-presentation.sh",
+    "agent:sync": "bash scripts/agent-sync.sh"
   },
   "dependencies": {
     "@remotion/bundler": "^4.0.425",
