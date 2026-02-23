@@ -2,6 +2,10 @@
 
 Starter Next.js repository with GSAP and Sanity dependencies installed.
 
+## Start Here
+
+- Daily workflow (dev vs presentation): `DAILY_OPERATION_GUIDE.md`
+- One-command workflow agent: `WORKFLOW_AGENT.md`
 ## Requirements
 
 - Node.js 20+

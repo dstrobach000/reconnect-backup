@@ -4,11 +4,24 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "backup:dev": "bash scripts/backup-dev.sh",
+    "publish:presentation": "bash scripts/publish-presentation.sh"
   },
   "dependencies": {
+    "@remotion/bundler": "^4.0.425",
+    "@remotion/renderer": "^4.0.425",
     "gsap": "^3.14.2",
     "next": "^16.1.6",
+    "remotion": "^4.0.425",
     "sanity": "^5.10.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.18",
+    "@types/node": "^25.2.3",
+    "@types/react": "^19.2.14",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.18",
+    "typescript": "^5.9.3"
   }
 }
