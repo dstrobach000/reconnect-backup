@@ -1,0 +1,622 @@
+@font-face {
+  font-family: "Dazzed";
+  src: url("/fonts/Dazzed/Dazzed-TRIAL-Thin.woff2") format("woff2");
+  font-weight: 100;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Dazzed";
+  src: url("/fonts/Dazzed/Dazzed-TRIAL-ThinItalic.woff2") format("woff2");
+  font-weight: 100;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Dazzed";
+  src: url("/fonts/Dazzed/Dazzed-TRIAL-Light.woff2") format("woff2");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Dazzed";
+  src: url("/fonts/Dazzed/Dazzed-TRIAL-LightItalic.woff2") format("woff2");
+  font-weight: 300;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Dazzed";
+  src: url("/fonts/Dazzed/Dazzed-TRIAL-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Dazzed";
+  src: url("/fonts/Dazzed/Dazzed-TRIAL-RegularItalic.woff2") format("woff2");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Dazzed";
+  src: url("/fonts/Dazzed/Dazzed-TRIAL-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Dazzed";
+  src: url("/fonts/Dazzed/Dazzed-TRIAL-MediumItalic.woff2") format("woff2");
+  font-weight: 500;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Dazzed";
+  src: url("/fonts/Dazzed/Dazzed-TRIAL-SemiBold.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Dazzed";
+  src: url("/fonts/Dazzed/Dazzed-TRIAL-SemiBoldItalic.woff2") format("woff2");
+  font-weight: 600;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Dazzed";
+  src: url("/fonts/Dazzed/Dazzed-TRIAL-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Dazzed";
+  src: url("/fonts/Dazzed/Dazzed-TRIAL-BoldItalic.woff2") format("woff2");
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Dazzed";
+  src: url("/fonts/Dazzed/Dazzed-TRIAL-Heavy.woff2") format("woff2");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Dazzed";
+  src: url("/fonts/Dazzed/Dazzed-TRIAL-HeavyItalic.woff2") format("woff2");
+  font-weight: 800;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Dazzed VF";
+  src: url("/fonts/Dazzed/DazzedVF-TRIAL.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Documan";
+  src: url("/fonts/Documan/Documan-TRIAL-Thin.woff2") format("woff2");
+  font-weight: 100;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Documan";
+  src: url("/fonts/Documan/Documan-TRIAL-ExtraLight.woff2") format("woff2");
+  font-weight: 200;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Documan";
+  src: url("/fonts/Documan/Documan-TRIAL-Light.woff2") format("woff2");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Documan";
+  src: url("/fonts/Documan/Documan-TRIAL-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Documan";
+  src: url("/fonts/Documan/Documan-TRIAL-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Documan";
+  src: url("/fonts/Documan/Documan-TRIAL-SemiBold.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Documan";
+  src: url("/fonts/Documan/Documan-TRIAL-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Documan";
+  src: url("/fonts/Documan/Documan-TRIAL-Heavy.woff2") format("woff2");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Documan Lazer";
+  src: url("/fonts/Documan/Documan-TRIAL-Lazer.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "NG Hofmann";
+  src: url("/fonts/Hofmann/NG-Hofmann-TRIAL.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Lazzer";
+  src: url("/fonts/Lazzer/Lazzer-TRIAL-Thin.woff2") format("woff2");
+  font-weight: 100;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Lazzer";
+  src: url("/fonts/Lazzer/Lazzer-TRIAL-ThinItalic.woff2") format("woff2");
+  font-weight: 100;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Lazzer";
+  src: url("/fonts/Lazzer/Lazzer-TRIAL-Light.woff2") format("woff2");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Lazzer";
+  src: url("/fonts/Lazzer/Lazzer-TRIAL-LightItalic.woff2") format("woff2");
+  font-weight: 300;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Lazzer";
+  src: url("/fonts/Lazzer/Lazzer-TRIAL-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Lazzer";
+  src: url("/fonts/Lazzer/Lazzer-TRIAL-RegularItalic.woff2") format("woff2");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Lazzer";
+  src: url("/fonts/Lazzer/Lazzer-TRIAL-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Lazzer";
+  src: url("/fonts/Lazzer/Lazzer-TRIAL-MediumItalic.woff2") format("woff2");
+  font-weight: 500;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Lazzer";
+  src: url("/fonts/Lazzer/Lazzer-TRIAL-SemiBold.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Lazzer";
+  src: url("/fonts/Lazzer/Lazzer-TRIAL-SemiBoldItalic.woff2") format("woff2");
+  font-weight: 600;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Lazzer";
+  src: url("/fonts/Lazzer/Lazzer-TRIAL-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Lazzer";
+  src: url("/fonts/Lazzer/Lazzer-TRIAL-BoldItalic.woff2") format("woff2");
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Lazzer";
+  src: url("/fonts/Lazzer/Lazzer-TRIAL-Heavy.woff2") format("woff2");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Lazzer";
+  src: url("/fonts/Lazzer/Lazzer-TRIAL-HeavyItalic.woff2") format("woff2");
+  font-weight: 800;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Lazzer VF";
+  src: url("/fonts/Lazzer/LazzerVF-TRIAL.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Mekanikal Display";
+  src: url("/fonts/Mekanikal/Mekanikal-Display-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "NewEdge666";
+  src: url("/fonts/NewEdge666/NewEdge666Test-UltraLight.otf") format("opentype");
+  font-weight: 200;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "NewEdge666";
+  src: url("/fonts/NewEdge666/NewEdge666Test-UltraLightSlanted.otf") format("opentype");
+  font-weight: 200;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "NewEdge666";
+  src: url("/fonts/NewEdge666/NewEdge666Test-Light.otf") format("opentype");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "NewEdge666";
+  src: url("/fonts/NewEdge666/NewEdge666Test-LightSlanted.otf") format("opentype");
+  font-weight: 300;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "NewEdge666";
+  src: url("/fonts/NewEdge666/NewEdge666Test-Regular.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "NewEdge666";
+  src: url("/fonts/NewEdge666/NewEdge666Test-RegularSlanted.otf") format("opentype");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "NewEdge666";
+  src: url("/fonts/NewEdge666/NewEdge666Test-SemiBold.otf") format("opentype");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "NewEdge666";
+  src: url("/fonts/NewEdge666/NewEdge666Test-SemiboldSlanted.otf") format("opentype");
+  font-weight: 600;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "NewEdge666";
+  src: url("/fonts/NewEdge666/NewEdge666Test-UltraBold.otf") format("opentype");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "NewEdge666";
+  src: url("/fonts/NewEdge666/NewEdge666Test-UltraBoldSlanted.otf") format("opentype");
+  font-weight: 800;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "NewEdge666 Rounded";
+  src: url("/fonts/NewEdge666/NewEdge666Test-UltraLightRounded.otf") format("opentype");
+  font-weight: 200;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "NewEdge666 Rounded";
+  src: url("/fonts/NewEdge666/NewEdge666Test-UltraLightRoundedSlanted.otf") format("opentype");
+  font-weight: 200;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "NewEdge666 Rounded";
+  src: url("/fonts/NewEdge666/NewEdge666Test-LightRounded.otf") format("opentype");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "NewEdge666 Rounded";
+  src: url("/fonts/NewEdge666/NewEdge666Test-LightRoundedSlanted.otf") format("opentype");
+  font-weight: 300;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "NewEdge666 Rounded";
+  src: url("/fonts/NewEdge666/NewEdge666Test-RegularRounded.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "NewEdge666 Rounded";
+  src: url("/fonts/NewEdge666/NewEdge666Test-RegularRoundedSlanted.otf") format("opentype");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "NewEdge666 Rounded";
+  src: url("/fonts/NewEdge666/NewEdge666Test-SemiboldRounded.otf") format("opentype");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "NewEdge666 Rounded";
+  src: url("/fonts/NewEdge666/NewEdge666Test-SemiboldRoundedSlanted.otf") format("opentype");
+  font-weight: 600;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "NewEdge666 Rounded";
+  src: url("/fonts/NewEdge666/NewEdge666Test-UltraBoldRounded.otf") format("opentype");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "NewEdge666 Rounded";
+  src: url("/fonts/NewEdge666/NewEdge666Test-UltraBoldRoundedSlanted.otf") format("opentype");
+  font-weight: 800;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Ofform";
+  src: url("/fonts/Ofform/Ofform-TRIAL-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Ofform";
+  src: url("/fonts/Ofform/Ofform-TRIAL-RegularItalic.woff2") format("woff2");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Ofform VF";
+  src: url("/fonts/Ofform/OfformVF-TRIAL.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Roobert Mono";
+  src: url("/fonts/RoobertMono/RoobertMono-TRIAL-Light.woff2") format("woff2");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Roobert Mono";
+  src: url("/fonts/RoobertMono/RoobertMono-TRIAL-LightItalic.woff2") format("woff2");
+  font-weight: 300;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Roobert Mono";
+  src: url("/fonts/RoobertMono/RoobertMono-TRIAL-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Roobert Mono";
+  src: url("/fonts/RoobertMono/RoobertMono-TRIAL-RegularItalic.woff2") format("woff2");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Roobert Mono";
+  src: url("/fonts/RoobertMono/RoobertMono-TRIAL-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Roobert Mono";
+  src: url("/fonts/RoobertMono/RoobertMono-TRIAL-MediumItalic.woff2") format("woff2");
+  font-weight: 500;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Roobert Mono";
+  src: url("/fonts/RoobertMono/RoobertMono-TRIAL-SemiBold.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Roobert Mono";
+  src: url("/fonts/RoobertMono/RoobertMono-TRIAL-SemiBoldItalic.woff2") format("woff2");
+  font-weight: 600;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Roobert Mono";
+  src: url("/fonts/RoobertMono/RoobertMono-TRIAL-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Roobert Mono";
+  src: url("/fonts/RoobertMono/RoobertMono-TRIAL-BoldItalic.woff2") format("woff2");
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Roobert Mono";
+  src: url("/fonts/RoobertMono/RoobertMono-TRIAL-Heavy.woff2") format("woff2");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Roobert Mono";
+  src: url("/fonts/RoobertMono/RoobertMono-TRIAL-HeavyItalic.woff2") format("woff2");
+  font-weight: 800;
+  font-style: italic;
+  font-display: swap;
+}
+
+:root {
+  --font-dazzed: "Dazzed", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-documan: "Documan", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-hofmann: "NG Hofmann", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-lazzer: "Lazzer", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mekanikal: "Mekanikal Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-newedge: "NewEdge666", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-newedge-rounded: "NewEdge666 Rounded", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-ofform: "Ofform", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-roobert-mono: "Roobert Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --font-body: var(--font-ofform);
+  --font-heading: var(--font-dazzed);
+}

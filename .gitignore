@@ -5,6 +5,7 @@
 /.next
 /out
 /.vercel
+/.data
 
 # production
 /build
