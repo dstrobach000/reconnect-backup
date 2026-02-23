@@ -50,8 +50,8 @@ if ! git rev-parse --verify "${source_commit}^" >/dev/null 2>&1; then
   exit 0
 fi
 
-mapfile -t changed_files < <(git diff --name-only "${source_commit}^" "$source_commit" | sed '/^$/d')
-if [[ "${#changed_files[@]}" -eq 0 ]]; then
+changed_files_raw="$(git diff --name-only "${source_commit}^" "$source_commit" | sed '/^$/d')"
+if [[ -z "$changed_files_raw" ]]; then
   echo "No file changes in source commit. Skipping presentation publish."
   exit 0
 fi
@@ -77,7 +77,8 @@ BLOCKED_PATHS=(
 )
 
 allowed_files=()
-for file in "${changed_files[@]}"; do
+while IFS= read -r file; do
+  [[ -z "$file" ]] && continue
   blocked=0
   for blocked_path in "${BLOCKED_PATHS[@]}"; do
     if [[ "$blocked_path" == */ ]]; then
@@ -95,7 +96,7 @@ for file in "${changed_files[@]}"; do
   if [[ "$blocked" -eq 0 ]]; then
     allowed_files+=("$file")
   fi
-done
+done <<< "$changed_files_raw"
 
 if [[ "${#allowed_files[@]}" -eq 0 ]]; then
   echo "No presentation-safe files in source commit. Skipping publish."

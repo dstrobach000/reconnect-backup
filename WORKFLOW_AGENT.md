@@ -48,9 +48,9 @@ Script: `scripts/publish-presentation.sh`
 
 1. Requires branch `codex/dev-local`
 2. Requires clean working tree
-3. Validates the commit does **not** include dev-only paths
-4. Switches to `main`
-5. Cherry-picks the commit
+3. Reads the specified commit and excludes dev-only paths automatically
+4. Applies only presentation-safe changes to `main`
+5. Creates a publish commit on `main`
 6. Pushes `origin/main` (triggers Vercel production deploy)
 7. Switches back to `codex/dev-local`
 
