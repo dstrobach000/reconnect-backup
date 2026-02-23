@@ -14,14 +14,14 @@ const HERO_SLIDES = [
   '/images/hero/hero04.jpg',
   '/images/hero/hero05.jpg',
 ];
-const DEFAULT_HERO_OVERLAY_VIDEO = '/exports/1920_ring_01.mp4';
+const DEFAULT_HERO_OVERLAY_VIDEO = '/exports/1920_cross_02.mp4';
 const HERO_CYCLE_INTERVAL_MS = 2000;
 const STORAGE_KEY = 'reconnect-hero-text-controls-v1';
 const STORAGE_EVENT = 'reconnect-hero-text-controls-updated';
 const SHARED_SETTINGS_ENDPOINT = '/api/hero-text-style';
 const OVERLAY_VIDEO_OPTIONS_ENDPOINT = '/api/composer-export?scope=all';
 const OVERLAY_SOURCE_VIDEO_PATTERN = /^1920_.+\.mp4$/i;
-const DEFAULT_THEME_COLOR = '#39ff14';
+const DEFAULT_THEME_COLOR = '#a7c7f1';
 const FILL_STROKE_MODES = ['fill', 'stroke', 'fill-stroke'] as const;
 const TEXT_TRANSFORMS = ['none', 'uppercase', 'lowercase', 'capitalize'] as const;
 type FillStrokeMode = (typeof FILL_STROKE_MODES)[number];
@@ -29,8 +29,8 @@ type TextTransformMode = (typeof TEXT_TRANSFORMS)[number];
 type HighlightMode = 'theme' | 'custom';
 const OVERLAY_BLEND_MODES = ['screen', 'overlay', 'lighten', 'soft-light', 'multiply', 'normal'] as const;
 type OverlayBlendMode = (typeof OVERLAY_BLEND_MODES)[number];
-const DEFAULT_OVERLAY_BLEND_MODE: OverlayBlendMode = 'screen';
-const DEFAULT_OVERLAY_OPACITY = 0.6;
+const DEFAULT_OVERLAY_BLEND_MODE: OverlayBlendMode = 'multiply';
+const DEFAULT_OVERLAY_OPACITY = 1;
 const HERO_STYLE_OPTIONS = [
   { value: 'graphic', label: 'Graphic' },
   { value: 'photo', label: 'Photo' },
@@ -83,41 +83,45 @@ function hasSavedControls(payload: SavedControlsPayload | null | undefined) {
 
 const DEFAULT_TITLE_CONTROLS = {
   fontFamily: 'var(--font-mekanikal)',
-  color: '#39ff14',
+  color: '#ffffff',
   mode: 'stroke',
   strokeWidth: 1,
-  fontSize: 72,
-  mobileScale: 0.52,
-  letterSpacing: -0.025,
+  fontSize: 148,
+  mobileScale: 0.3,
+  letterSpacing: -0.005,
   textTransform: 'uppercase',
 } satisfies TextControls;
 const DEFAULT_TICKER_CONTROLS = {
-  fontFamily: 'var(--font-documan)',
-  color: '#39ff14',
+  fontFamily: 'var(--font-dazzed)',
+  color: '#ffffff',
   mode: 'fill',
   strokeWidth: 0,
-  fontSize: 48,
-  mobileScale: 0.62,
-  letterSpacing: 0.15,
-  textTransform: 'uppercase',
+  fontSize: 45,
+  mobileScale: 0.7,
+  letterSpacing: 0,
+  textTransform: 'capitalize',
 } satisfies TextControls;
 const DEFAULT_EVENT_CONTROLS = {
-  fontFamily: 'var(--font-roobertmono)',
+  fontFamily: 'var(--font-dazzed)',
   color: '#000000',
   mode: 'fill',
   strokeWidth: 0,
-  fontSize: 30,
-  mobileScale: 0.7,
-  letterSpacing: 0.04,
-  textTransform: 'uppercase',
+  fontSize: 20,
+  mobileScale: 0.5,
+  letterSpacing: 0.005,
+  textTransform: 'capitalize',
 } satisfies TextControls;
 const DEFAULT_HIGHLIGHT_MODE: HighlightMode = 'theme';
 const DEFAULT_HIGHLIGHT_COLOR = '#000000';
-const DEFAULT_HIGHLIGHT_RADIUS = 0;
+const DEFAULT_HIGHLIGHT_RADIUS = 24;
 const SWATCH_ROWS = 9;
 const SAFARI_SWATCH_HUES = [214, 230, 248, 267, 288, 318, 350, 18, 32, 50, 78, 126] as const;
 const SAFARI_SWATCH_SATURATIONS = [72, 72, 68, 64, 60, 62, 68, 70, 56, 72, 74, 66] as const;
 const SAFARI_SWATCH_LIGHTNESS = [14, 20, 27, 34, 42, 50, 58, 68, 80] as const;
+const SAFARI_INLINE_VIDEO_ATTRS: Record<string, string> = {
+  'webkit-playsinline': 'true',
+  'x-webkit-airplay': 'deny',
+};
 const PRESENTATION_THEME_OVERRIDES = [
   '#dee8fc',
   '#d95c26',
@@ -125,6 +129,7 @@ const PRESENTATION_THEME_OVERRIDES = [
   '#958018',
   '#12960d',
   '#96560d',
+  '#e07bc2',
 ] as const;
 
 function hslToHex(h: number, s: number, l: number) {
@@ -805,9 +810,7 @@ export default function HeroRadar({ controlsEnabled = true }: { controlsEnabled?
             : 0,
       visibility:
         controlsEnabled || effectiveHeroStyle !== 'photo'
-          ? isOverlayPlaybackReady
-            ? ('visible' as const)
-            : ('hidden' as const)
+          ? ('visible' as const)
           : ('hidden' as const),
     }),
     [
@@ -995,7 +998,7 @@ export default function HeroRadar({ controlsEnabled = true }: { controlsEnabled?
   }, [overlayVideo]);
 
   useEffect(() => {
-    if (!controlsEnabled || !isControlsOpen) return;
+    if (controlsEnabled && !isControlsOpen) return;
     let cancelled = false;
 
     const loadOverlayVideos = async () => {
@@ -1035,6 +1038,7 @@ export default function HeroRadar({ controlsEnabled = true }: { controlsEnabled?
     if (!video) return;
 
     let retryTimer: number | null = null;
+    let userGestureListenersRemoved = false;
 
     const hardenVideoElement = () => {
       video.muted = true;
@@ -1047,6 +1051,8 @@ export default function HeroRadar({ controlsEnabled = true }: { controlsEnabled?
       video.disablePictureInPicture = true;
       video.disableRemotePlayback = true;
       video.setAttribute('muted', '');
+      video.setAttribute('autoplay', '');
+      video.setAttribute('loop', '');
       video.setAttribute('playsinline', '');
       video.setAttribute('webkit-playsinline', 'true');
       video.setAttribute('x-webkit-airplay', 'deny');
@@ -1055,7 +1061,7 @@ export default function HeroRadar({ controlsEnabled = true }: { controlsEnabled?
     };
 
     const markOverlayReady = () => {
-      if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA || !video.paused) {
+      if (!video.paused) {
         setIsOverlayPlaybackReady(true);
       }
     };
@@ -1063,6 +1069,9 @@ export default function HeroRadar({ controlsEnabled = true }: { controlsEnabled?
     const attemptPlay = () => {
       hardenVideoElement();
       markOverlayReady();
+      if (video.readyState === HTMLMediaElement.HAVE_NOTHING) {
+        video.load();
+      }
       const maybePromise = video.play();
       if (maybePromise && typeof maybePromise.then === 'function') {
         maybePromise
@@ -1072,6 +1081,22 @@ export default function HeroRadar({ controlsEnabled = true }: { controlsEnabled?
           .catch(() => {});
       } else if (!video.paused) {
         setIsOverlayPlaybackReady(true);
+      }
+    };
+
+    const removeUserGestureListeners = () => {
+      if (userGestureListenersRemoved) return;
+      userGestureListenersRemoved = true;
+      document.removeEventListener('touchstart', handleUserGesture, true);
+      document.removeEventListener('pointerdown', handleUserGesture, true);
+      document.removeEventListener('click', handleUserGesture, true);
+      document.removeEventListener('keydown', handleUserGesture, true);
+    };
+
+    const handleUserGesture = () => {
+      attemptPlay();
+      if (!video.paused) {
+        removeUserGestureListeners();
       }
     };
 
@@ -1090,6 +1115,7 @@ export default function HeroRadar({ controlsEnabled = true }: { controlsEnabled?
     };
 
     const handlePause = () => {
+      setIsOverlayPlaybackReady(false);
       if (document.visibilityState === 'visible') {
         attemptPlay();
       }
@@ -1109,7 +1135,12 @@ export default function HeroRadar({ controlsEnabled = true }: { controlsEnabled?
     video.addEventListener('waiting', handleBuffering);
     video.addEventListener('stalled', handleBuffering);
     video.addEventListener('emptied', handleBuffering);
+    video.addEventListener('playing', removeUserGestureListeners);
     document.addEventListener('visibilitychange', handleVisibility);
+    document.addEventListener('touchstart', handleUserGesture, true);
+    document.addEventListener('pointerdown', handleUserGesture, true);
+    document.addEventListener('click', handleUserGesture, true);
+    document.addEventListener('keydown', handleUserGesture, true);
     attemptPlay();
 
     retryTimer = window.setInterval(() => {
@@ -1128,7 +1159,9 @@ export default function HeroRadar({ controlsEnabled = true }: { controlsEnabled?
       video.removeEventListener('waiting', handleBuffering);
       video.removeEventListener('stalled', handleBuffering);
       video.removeEventListener('emptied', handleBuffering);
+      video.removeEventListener('playing', removeUserGestureListeners);
       document.removeEventListener('visibilitychange', handleVisibility);
+      removeUserGestureListeners();
     };
   }, [overlayVideo]);
 
@@ -1171,6 +1204,7 @@ export default function HeroRadar({ controlsEnabled = true }: { controlsEnabled?
         ))}
         <video
           ref={overlayVideoRef}
+          {...SAFARI_INLINE_VIDEO_ATTRS}
           className="hero-overlay-video pointer-events-none absolute inset-0 h-full w-full select-none object-cover"
           style={heroOverlayStyle}
           src={overlayVideo}
@@ -1373,7 +1407,40 @@ export default function HeroRadar({ controlsEnabled = true }: { controlsEnabled?
       {!controlsEnabled ? (
         <div className="pointer-events-auto absolute bottom-4 left-1/2 z-20 -translate-x-1/2">
           <div className="rounded border border-[rgb(var(--signal-rgb)/0.6)] bg-black/70 px-2 py-1.5 backdrop-blur-sm">
-            <div className="flex flex-wrap items-end gap-2">
+            <div className="flex min-w-[150px] flex-col gap-2">
+              <label className="flex flex-col gap-1 text-[9px] uppercase tracking-[0.15em] text-[var(--signal)]">
+                Hero Style
+                <StyledDropdown
+                  value={presentationHeroStyle}
+                  onChange={(value) => setPresentationHeroStyle(value as HeroStyleMode)}
+                  options={HERO_STYLE_OPTIONS.map((option) => ({
+                    value: option.value,
+                    label: option.label,
+                  }))}
+                  tone="dark"
+                  className="min-w-[150px]"
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-[9px] uppercase tracking-[0.15em] text-[var(--signal)]">
+                Hero Overlay
+                <StyledDropdown
+                  value={selectedOverlayVideoOption}
+                  onChange={(value) => {
+                    if (!value) return;
+                    setOverlayVideo(normalizeOverlayVideoSource(value));
+                  }}
+                  options={
+                    overlayVideoSelectOptions.length
+                      ? overlayVideoSelectOptions.map((item) => ({
+                          value: item.url,
+                          label: item.filename,
+                        }))
+                      : [{ value: '', label: 'No 1920 exports found' }]
+                  }
+                  tone="dark"
+                  className="min-w-[150px]"
+                />
+              </label>
               <div className="flex items-center gap-1.5">
                 {PRESENTATION_THEME_OVERRIDES.map((color) => (
                   <button
@@ -1391,19 +1458,6 @@ export default function HeroRadar({ controlsEnabled = true }: { controlsEnabled?
                   />
                 ))}
               </div>
-              <label className="flex min-w-[150px] flex-col gap-1 text-[9px] uppercase tracking-[0.15em] text-[var(--signal)]">
-                Hero Style
-                <StyledDropdown
-                  value={presentationHeroStyle}
-                  onChange={(value) => setPresentationHeroStyle(value as HeroStyleMode)}
-                  options={HERO_STYLE_OPTIONS.map((option) => ({
-                    value: option.value,
-                    label: option.label,
-                  }))}
-                  tone="dark"
-                  className="min-w-[150px]"
-                />
-              </label>
             </div>
           </div>
         </div>

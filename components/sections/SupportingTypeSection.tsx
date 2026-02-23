@@ -2,6 +2,7 @@
 
 import { SUPPORTING_FONT_OPTIONS, getSupportingFontFamily } from '../../lib/fontPicker';
 import StyledDropdown from './StyledDropdown';
+import InlineAutoplayVideo from '../media/InlineAutoplayVideo';
 
 const ROOBERT_URL = 'https://displaay.net/typeface/roobert';
 const DAZZED_URL = 'https://displaay.net/typeface/dazzed';
@@ -40,13 +41,9 @@ export default function SupportingTypeSection({
 
           <div className="order-2 md:row-span-2">
             <div className="relative aspect-square w-full overflow-hidden bg-black [contain:paint]">
-              <video
+              <InlineAutoplayVideo
                 src="/exports/512_dot_05.mp4"
                 className="absolute inset-0 block h-full w-full object-cover [backface-visibility:hidden] [transform:translateZ(0)]"
-                autoPlay
-                muted
-                loop
-                playsInline
                 preload="metadata"
               />
             </div>

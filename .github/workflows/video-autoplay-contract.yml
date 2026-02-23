@@ -1,0 +1,32 @@
+name: Video Autoplay Contract
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  autoplay-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Enforce video contract (no disallowed raw <video>)
+        run: npm run check:video-contract
+
+      - name: Install Playwright WebKit
+        run: npx playwright install --with-deps webkit
+
+      - name: Run WebKit autoplay tests
+        run: npm run test:e2e:webkit

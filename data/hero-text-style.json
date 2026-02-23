@@ -29,12 +29,12 @@
     "letterSpacing": 0.005,
     "textTransform": "capitalize"
   },
-  "themeColor": "#e07bc2",
+  "themeColor": "#a7c7f1",
   "highlightMode": "theme",
   "highlightColor": "#000000",
   "highlightRadius": 24,
   "overlayBlendMode": "multiply",
   "overlayOpacity": 1,
   "overlayVideo": "/exports/1920_cross_02.mp4",
-  "updatedAt": "2026-02-23T17:18:31.643Z"
+  "updatedAt": "2026-02-23T19:48:55.409Z"
 }

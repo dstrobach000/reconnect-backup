@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import InlineAutoplayVideo from '../media/InlineAutoplayVideo';
 const COMPOSER_EXPORT_API = '/api/composer-export';
 
 type ExportVideoItem = {
@@ -76,13 +77,9 @@ export default function AnimationReferenceSection() {
 
           <div className="order-2 md:row-span-2">
             <div className="relative aspect-square w-full overflow-hidden bg-black [contain:paint]">
-              <video
+              <InlineAutoplayVideo
                 src="/exports/512_cross_03.mp4"
                 className="absolute inset-0 block h-full w-full object-cover [backface-visibility:hidden] [transform:translateZ(0)]"
-                autoPlay
-                muted
-                loop
-                playsInline
                 preload="metadata"
               />
             </div>
@@ -103,21 +100,14 @@ export default function AnimationReferenceSection() {
         </div>
 
         <div className="mt-10">
-          <p className="mb-4 text-xs uppercase tracking-[0.15em] text-black" style={{ fontFamily: 'var(--font-mekanikal)' }}>
-            Animation Grid
-          </p>
           {exportVideos.length ? (
             <div className="grid grid-cols-2 gap-4 md:grid-cols-5 md:gap-6">
               {exportVideos.map((item) => (
                 <div key={item.filename} className="w-full">
                   <div className="relative aspect-square overflow-hidden bg-black [contain:paint]">
-                    <video
+                    <InlineAutoplayVideo
                       src={item.url}
                       className="absolute inset-0 block h-full w-full object-cover [backface-visibility:hidden] [transform:translateZ(0)]"
-                      autoPlay
-                      muted
-                      loop
-                      playsInline
                       preload="metadata"
                     />
                   </div>
