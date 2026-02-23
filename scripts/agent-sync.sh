@@ -72,6 +72,8 @@ BLOCKED_PATHS=(
   "remotion/"
   "data/composer-library.json"
   "public/exports/"
+  "next-env.d.ts"
+  "tsconfig.tsbuildinfo"
 )
 
 allowed_files=()

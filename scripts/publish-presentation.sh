@@ -29,6 +29,8 @@ BLOCKED_PATHS=(
   "remotion/"
   "data/composer-library.json"
   "public/exports/"
+  "next-env.d.ts"
+  "tsconfig.tsbuildinfo"
 )
 
 current_branch="$(git branch --show-current)"

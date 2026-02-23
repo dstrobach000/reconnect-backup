@@ -73,6 +73,8 @@ Use this to safely publish only presentation changes.
 - `remotion/`
 - `data/composer-library.json`
 - `public/exports/`
+- `next-env.d.ts`
+- `tsconfig.tsbuildinfo`
 
 ## Typical daily flow
 
