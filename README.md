@@ -37,6 +37,47 @@ App runs at `http://localhost:3000`.
 - `public/fonts/` - Place local font files here
 - `.env.example` - Copy to `.env.local` and set values
 
+## Animation Builder Notes
+
+### Text Layer (MVP)
+
+- New layer type: `Text`
+- Default content: `RECONNECT:`
+- Font: `var(--font-mekanikal), "Mekanikal Display", sans-serif`
+- Text controls in Layer Editor:
+  - `Text Content` (max 48 chars)
+  - `Text Size` (`4..40`)
+  - `Letter Spacing` (`-1..4`)
+  - `Vertical Offset` (`-30..30`)
+
+### Text Motion
+
+- New motion mode: `Typewriter`
+- Reveals text letter-by-letter over the layer motion cycle
+- Works in both live preview and export (forced-time path)
+- Uses existing `Motion Speed` + loop sync behavior
+
+### Renderer Behavior
+
+- WebGL preview path does **not** render text geometry yet.
+- If any enabled layer is `Text`, preview automatically falls back to the SVG renderer.
+- Exports already use SVG composition, so text/typewriter behavior matches export output.
+- Remotion export entry must not import `app/fonts.css`; export-specific fonts should be loaded explicitly inside the composition to avoid webpack font-resolution failures during MP4 export.
+
+### Randomizer Behavior
+
+- `Text` is available in layer type dropdowns.
+- Randomizer default shape pool excludes `Text` to avoid random text layers unless explicitly selected.
+
+### Stroke Width Slider Precision
+
+- `Master Stroke Width` now preserves fine steps (0.2 increments), including visible intermediate values below `1px`.
+
+### Render Effects Coverage (SVG path)
+
+- SVG render pipeline includes a transparent full-canvas coverage rect in the filtered chain to prevent small-geometry/text-only filter bbox collapse.
+- This keeps grain/effects coverage consistent across the whole preview canvas.
+
 ## Video Autoplay Contract (iOS/Safari)
 
 This project has an enforced autoplay contract to reduce regressions on iPhone Safari/Chrome and desktop Safari.
