@@ -1,4 +1,5 @@
-const LAYER_TYPES = ['ring', 'cross', 'dot', 'ticks', 'square', 'grid', 'line'];
+const LAYER_TYPES = ['ring', 'cross', 'dot', 'ticks', 'square', 'grid', 'line', 'text'];
+const RANDOMIZER_LAYER_TYPES = ['ring', 'cross', 'dot', 'ticks', 'square', 'grid', 'line'];
 const FILL_MODES = ['stroke', 'fill', 'fill-stroke', 'noise', 'noise-stroke'];
 const DASH_STYLES = ['solid', 'dashed'];
 const MOTION_TYPES = [
@@ -10,6 +11,7 @@ const MOTION_TYPES = [
   'sweep-angle',
   'blink',
   'infinite-zoom',
+  'typewriter',
   'cross-arm-gap',
   'cross-arm-length',
   'cross-arm-morph',
@@ -40,6 +42,7 @@ export const LAYER_TYPE_OPTIONS = [
   { label: 'Square', value: 'square' },
   { label: 'Grid', value: 'grid' },
   { label: 'Line', value: 'line' },
+  { label: 'Text', value: 'text' },
 ];
 
 export const FILL_MODE_OPTIONS = [
@@ -64,6 +67,7 @@ export const MOTION_TYPE_OPTIONS = [
   { label: 'Sweep Angle', value: 'sweep-angle' },
   { label: 'Blink', value: 'blink' },
   { label: 'Infinite Zoom', value: 'infinite-zoom' },
+  { label: 'Typewriter', value: 'typewriter' },
   { label: 'Cross Arm Gap', value: 'cross-arm-gap' },
   { label: 'Cross Arm Length', value: 'cross-arm-length' },
   { label: 'Cross Arm Morph', value: 'cross-arm-morph' },
@@ -121,7 +125,7 @@ export const RANDOMIZER_DEFAULTS = {
   includeFill: false,
   includeRepeats: true,
   includeDashed: true,
-  allowedTypes: [...LAYER_TYPES],
+  allowedTypes: [...RANDOMIZER_LAYER_TYPES],
 };
 
 function randomItem(items) {
@@ -189,6 +193,14 @@ const TYPE_DEFAULTS = {
     lineLength: 36,
     lineOffset: 0,
   },
+  text: {
+    textContent: 'RECONNECT:',
+    textSize: 18,
+    textLetterSpacing: 0,
+    textAnchor: 'middle',
+    textBaseline: 'middle',
+    textYOffset: 0,
+  },
 };
 
 export function createLayer(type = 'ring', overrides = {}) {
@@ -246,6 +258,12 @@ function normalizeLayer(rawLayer) {
     gridOuterFrame: merged.gridOuterFrame !== false,
     lineLength: clampNumber(merged.lineLength, 1, 90, 36),
     lineOffset: clampNumber(merged.lineOffset, -44, 44, 0),
+    textContent: String(merged.textContent ?? 'RECONNECT:').slice(0, 48),
+    textSize: clampNumber(merged.textSize, 4, 40, 18),
+    textLetterSpacing: clampNumber(merged.textLetterSpacing, -1, 4, 0),
+    textAnchor: 'middle',
+    textBaseline: 'middle',
+    textYOffset: clampNumber(merged.textYOffset, -30, 30, 0),
   };
 }
 
@@ -527,7 +545,7 @@ export function createRandomComposerRecipe(settings, baseRecipe) {
   const mergedSettings = { ...RANDOMIZER_DEFAULTS, ...(settings ?? {}) };
   const allowedTypes = Array.isArray(mergedSettings.allowedTypes) && mergedSettings.allowedTypes.length
     ? mergedSettings.allowedTypes.filter((type) => LAYER_TYPES.includes(type))
-    : [...LAYER_TYPES];
+    : [...RANDOMIZER_LAYER_TYPES];
   const complexity = clampNumber(mergedSettings.complexity, 0, 100, RANDOMIZER_DEFAULTS.complexity);
   const layerCount = clampNumber(mergedSettings.layerCount, 1, 12, RANDOMIZER_DEFAULTS.layerCount);
   const includeMotion = Boolean(mergedSettings.includeMotion);

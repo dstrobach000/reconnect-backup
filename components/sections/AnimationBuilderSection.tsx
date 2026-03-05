@@ -110,14 +110,33 @@ function formatSpeedSnapNote(loopSeconds, speed) {
   return `snaps to ${cycles} ${cycleWord}/loop (${snappedDuration.toFixed(2)}s each). Increase Loop Length for slower motion.`;
 }
 
-function RangeField({ label, value, min, max, step, onChange, suffix = '', note = '' }) {
+function RangeField({
+  label,
+  value,
+  min,
+  max,
+  step,
+  onChange,
+  suffix = '',
+  note = '',
+  preserveStep = false,
+}) {
   const numericValue = typeof value === 'number' ? value : Number(value);
   const baseStep = Number.isFinite(step) && step > 0 ? step : 1;
   const shouldKeepTenthStep = baseStep < 1 && max - min <= 2;
-  const effectiveStep = baseStep >= 1 ? baseStep : shouldKeepTenthStep ? 0.1 : 1;
+  const effectiveStep = preserveStep
+    ? baseStep
+    : baseStep >= 1
+      ? baseStep
+      : shouldKeepTenthStep
+        ? 0.1
+        : 1;
+  const stepDecimals = effectiveStep >= 1
+    ? 0
+    : Math.min(3, String(effectiveStep).split('.')[1]?.length ?? 1);
   const displayValue = effectiveStep >= 1
     ? Math.round(numericValue)
-    : Number(numericValue.toFixed(1));
+    : Number(numericValue.toFixed(stepDecimals));
 
   return (
     <label className="flex flex-col gap-1 text-[10px] uppercase tracking-[0.18em]">
@@ -138,7 +157,7 @@ function RangeField({ label, value, min, max, step, onChange, suffix = '', note 
           const snappedValue = Math.round(rawValue / effectiveStep) * effectiveStep;
           const normalizedValue = effectiveStep >= 1
             ? Math.round(snappedValue)
-            : Number(snappedValue.toFixed(1));
+            : Number(snappedValue.toFixed(stepDecimals));
           onChange(clampNumber(normalizedValue, min, max));
         }}
       />
@@ -807,7 +826,8 @@ export default function AnimationBuilderSection() {
                       value={normalizedRecipe.masterStrokeWidth}
                       min={0.2}
                       max={8}
-                      step={0.1}
+                      step={0.2}
+                      preserveStep
                       suffix="px"
                       onChange={(value) => patchRecipe({ masterStrokeWidth: value })}
                     />
@@ -1331,6 +1351,45 @@ export default function AnimationBuilderSection() {
                         max={44}
                         step={0.5}
                         onChange={(value) => patchLayer(selectedLayer.id, { lineOffset: value })}
+                      />
+                    </>
+                  ) : null}
+
+                  {selectedLayer.type === 'text' ? (
+                    <>
+                      <label className="flex flex-col gap-1 text-[10px] uppercase tracking-[0.18em] sm:col-span-2">
+                        <span>Text Content</span>
+                        <input
+                          type="text"
+                          value={selectedLayer.textContent}
+                          maxLength={48}
+                          onChange={(event) => patchLayer(selectedLayer.id, { textContent: event.target.value })}
+                          className="rounded border border-[rgb(var(--signal-rgb)/0.35)] bg-black/80 px-2 py-1 text-xs normal-case text-[var(--signal)]"
+                        />
+                      </label>
+                      <RangeField
+                        label="Text Size"
+                        value={selectedLayer.textSize}
+                        min={4}
+                        max={40}
+                        step={0.1}
+                        onChange={(value) => patchLayer(selectedLayer.id, { textSize: value })}
+                      />
+                      <RangeField
+                        label="Letter Spacing"
+                        value={selectedLayer.textLetterSpacing}
+                        min={-1}
+                        max={4}
+                        step={0.1}
+                        onChange={(value) => patchLayer(selectedLayer.id, { textLetterSpacing: value })}
+                      />
+                      <RangeField
+                        label="Vertical Offset"
+                        value={selectedLayer.textYOffset}
+                        min={-30}
+                        max={30}
+                        step={0.1}
+                        onChange={(value) => patchLayer(selectedLayer.id, { textYOffset: value })}
                       />
                     </>
                   ) : null}

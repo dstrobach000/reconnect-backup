@@ -303,6 +303,14 @@ function getLayerExtent(layer, masterStrokeWidth) {
     return (Math.abs(layer.lineOffset) + layer.lineLength * 0.5 + strokePadding) * repeatScaleMax + layer.repeatRadius;
   }
 
+  if (layer.type === 'text') {
+    const chars = Math.max(1, String(layer.textContent || '').length);
+    const width = layer.textSize * (0.72 * chars) + Math.max(0, chars - 1) * layer.textLetterSpacing;
+    const height = layer.textSize * 1.1;
+    const radius = Math.sqrt(Math.pow(width * 0.5, 2) + Math.pow(height * 0.5, 2));
+    return (radius + strokePadding) * repeatScaleMax + layer.repeatRadius;
+  }
+
   return 1;
 }
 
@@ -429,6 +437,32 @@ function getSweepStateAtTime({
     startAngle: filling ? startAngle : startAngle + localPhase * maxSweep,
     sweep: filling ? maxSweep * localPhase : maxSweep * (1 - localPhase),
   };
+}
+
+function getTypewriterVisibleText({
+  text,
+  timeSeconds,
+  loopSeconds,
+  motionSpeed,
+  masterSpeed,
+}) {
+  const fullText = String(text ?? '');
+  if (!Number.isFinite(timeSeconds)) return fullText;
+  if (!fullText.length) return '';
+
+  const cycleDuration = getLoopSyncedDurationFromSpeed(
+    loopSeconds,
+    motionSpeed * masterSpeed,
+  );
+  if (!(cycleDuration > 0)) return fullText;
+
+  const phase = getLoopPhase01(timeSeconds, cycleDuration);
+  const visibleChars = clampNumber(
+    Math.floor(phase * (fullText.length + 1)),
+    0,
+    fullText.length,
+  );
+  return fullText.slice(0, visibleChars);
 }
 
 function LayerGlyph({
@@ -680,6 +714,41 @@ function LayerGlyph({
         strokeLinecap="butt"
         strokeLinejoin="miter"
       />
+    );
+  }
+
+  if (layer.type === 'text') {
+    const motionModes = getLayerMotionModes(layer);
+    const hasTypewriter = motionModes.includes('typewriter');
+    const renderedText = hasTypewriter
+      ? getTypewriterVisibleText({
+        text: layer.textContent,
+        timeSeconds: forceTimeSeconds,
+        loopSeconds,
+        motionSpeed: layer.motionSpeed,
+        masterSpeed,
+      })
+      : layer.textContent;
+    return (
+      <text
+        x="0"
+        y={layer.textYOffset}
+        fill={showFill ? fillPaint : 'none'}
+        stroke={showStroke ? layerColor : 'none'}
+        strokeWidth={masterStrokeWidth}
+        strokeDasharray={dashArray}
+        strokeLinecap="butt"
+        strokeLinejoin="miter"
+        textAnchor="middle"
+        dominantBaseline="middle"
+        fontFamily={`var(--font-mekanikal, "Mekanikal Display"), "Helvetica Neue", Helvetica, Arial, sans-serif`}
+        fontSize={layer.textSize}
+        letterSpacing={layer.textLetterSpacing}
+        data-layer-text="true"
+        data-text-full={layer.textContent}
+      >
+        {renderedText}
+      </text>
     );
   }
 
@@ -1285,6 +1354,40 @@ export default function SymbolComposerCanvas({
                 ease: 'none',
               });
             });
+            return;
+          }
+
+          if (motion === 'typewriter' && layer.type === 'text') {
+            const textTargets = gsap.utils.toArray<SVGTextElement>(`${target} [data-layer-text="true"]`);
+            textTargets.forEach((node) => {
+              const fullText = node.getAttribute('data-text-full') || '';
+              const totalChars = fullText.length;
+              if (!totalChars) {
+                node.textContent = '';
+                return;
+              }
+
+              const typeState = { chars: 0 };
+              const updateTypedText = () => {
+                const visibleChars = clampNumber(
+                  Math.floor(typeState.chars),
+                  0,
+                  totalChars,
+                );
+                node.textContent = fullText.slice(0, visibleChars);
+              };
+
+              updateTypedText();
+              gsap.fromTo(typeState, {
+                chars: 0,
+              }, {
+                chars: totalChars + 1,
+                duration: layerCycleDuration,
+                repeat: -1,
+                ease: 'none',
+                onUpdate: updateTypedText,
+              });
+            });
           }
         });
       });
@@ -1502,23 +1605,31 @@ export default function SymbolComposerCanvas({
           ) : null}
         </defs>
         <g clipPath={sceneClipPath}>
-          <g data-master-scene transform={`translate(50 50) scale(${sceneScale}) translate(-50 -50)`}>
+          <g
+            data-render-scene-secondary
+            filter={secondaryRenderFilterId ? `url(#${secondaryRenderFilterId})` : undefined}
+          >
             <g
-              data-render-scene-secondary
-              filter={secondaryRenderFilterId ? `url(#${secondaryRenderFilterId})` : undefined}
+              data-render-scene-primary
+              filter={primaryRenderFilterId ? `url(#${primaryRenderFilterId})` : undefined}
             >
               <g
-                data-render-scene-primary
-                filter={primaryRenderFilterId ? `url(#${primaryRenderFilterId})` : undefined}
+                data-render-scene-prepass-primary={prepassFirstLabel}
+                filter={prepassFirstFilterId ? `url(#${prepassFirstFilterId})` : undefined}
               >
                 <g
-                  data-render-scene-prepass-primary={prepassFirstLabel}
-                  filter={prepassFirstFilterId ? `url(#${prepassFirstFilterId})` : undefined}
+                  data-render-scene-prepass-secondary={prepassSecondLabel}
+                  filter={prepassSecondFilterId ? `url(#${prepassSecondFilterId})` : undefined}
                 >
-                  <g
-                    data-render-scene-prepass-secondary={prepassSecondLabel}
-                    filter={prepassSecondFilterId ? `url(#${prepassSecondFilterId})` : undefined}
-                  >
+                  <rect
+                    x="0"
+                    y="0"
+                    width="100"
+                    height="100"
+                    fill="transparent"
+                    pointerEvents="none"
+                  />
+                  <g data-master-scene transform={`translate(50 50) scale(${sceneScale}) translate(-50 -50)`}>
                     {Array.from({ length: normalizedRecipe.masterFeedback + 1 }, (_, index) => normalizedRecipe.masterFeedback - index).map((feedbackIndex) => {
                         const feedbackScale = 1 + feedbackIndex * 0.08;
                         const feedbackOpacity = feedbackIndex === 0 ? 1 : Math.max(0.06, 0.25 / (feedbackIndex + 1));

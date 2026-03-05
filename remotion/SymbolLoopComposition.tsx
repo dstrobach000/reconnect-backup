@@ -1,4 +1,5 @@
-import { AbsoluteFill, useCurrentFrame, useVideoConfig } from 'remotion';
+import { useEffect, useMemo, useRef } from 'react';
+import { AbsoluteFill, continueRender, delayRender, staticFile, useCurrentFrame, useVideoConfig } from 'remotion';
 import SymbolComposerCanvas from '../components/animation/SymbolComposerCanvas';
 import { normalizeComposerRecipe } from '../lib/symbolComposer';
 
@@ -18,6 +19,40 @@ export default function SymbolLoopComposition({
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const normalizedRecipe = normalizeComposerRecipe(recipe);
+  const fontHandle = useMemo(() => delayRender('Loading Mekanikal font for export'), []);
+  const didContinueRef = useRef(false);
+
+  useEffect(() => {
+    const continueIfNeeded = () => {
+      if (didContinueRef.current) return;
+      didContinueRef.current = true;
+      continueRender(fontHandle);
+    };
+
+    const loadMekanikal = async () => {
+      try {
+        if (typeof document !== 'undefined' && 'fonts' in document && typeof FontFace !== 'undefined') {
+          const src = staticFile('fonts/Mekanikal/Mekanikal-Display-Regular.woff2');
+          const font = new FontFace(
+            'Mekanikal Display',
+            `url("${src}") format("woff2")`,
+            { weight: '400', style: 'normal' },
+          );
+          await font.load();
+          document.fonts.add(font);
+          await document.fonts.load('400 24px "Mekanikal Display"');
+          await document.fonts.ready;
+        }
+      } catch {
+        // Export should still proceed even if the custom font fails to load.
+      } finally {
+        continueIfNeeded();
+      }
+    };
+
+    void loadMekanikal();
+    return continueIfNeeded;
+  }, [fontHandle]);
 
   return (
     <AbsoluteFill style={{ backgroundColor: normalizedRecipe.backgroundColor }}>
