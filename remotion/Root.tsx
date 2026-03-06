@@ -27,8 +27,8 @@ export const RemotionRoot = () => {
         filterResolution: 512,
       }}
       calculateMetadata={({ props }) => {
-        const width = Math.max(128, Math.min(2048, Math.round(props.width || 512)));
-        const height = Math.max(128, Math.min(2048, Math.round(props.height || 512)));
+        const width = Math.max(128, Math.min(4096, Math.round(props.width || 512)));
+        const height = Math.max(128, Math.min(4096, Math.round(props.height || 512)));
         const fps = Math.max(12, Math.min(60, Math.round(props.fps || 25)));
         const durationInFrames = Math.max(12, Math.min(60 * 180, Math.round(props.durationInFrames || 200)));
         return { width, height, fps, durationInFrames };

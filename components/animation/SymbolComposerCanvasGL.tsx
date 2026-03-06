@@ -30,8 +30,10 @@ export default function SymbolComposerCanvasGL({
   const rafRef = useRef<number>(0);
   const [fallbackToSvg, setFallbackToSvg] = useState(false);
   const normalizedRecipe = useMemo(() => normalizeComposerRecipe(recipe), [recipe]);
-  const hasTextLayer = useMemo(
-    () => normalizedRecipe.layers.some((layer) => layer.enabled && layer.type === 'text'),
+  const hasSvgOnlyLayer = useMemo(
+    () => normalizedRecipe.layers.some(
+      (layer) => layer.enabled && (layer.type === 'text' || layer.type === 'image'),
+    ),
     [normalizedRecipe.layers],
   );
   const isForcedTime =
@@ -56,7 +58,7 @@ export default function SymbolComposerCanvasGL({
   );
 
   useEffect(() => {
-    if (fallbackToSvg || hasTextLayer) return;
+    if (fallbackToSvg || hasSvgOnlyLayer) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     try {
@@ -69,27 +71,27 @@ export default function SymbolComposerCanvasGL({
       rendererRef.current?.dispose();
       rendererRef.current = null;
     };
-  }, [fallbackToSvg, hasTextLayer]);
+  }, [fallbackToSvg, hasSvgOnlyLayer]);
 
   // forced time mode (Remotion export)
   useEffect(() => {
-    if (hasTextLayer) return;
+    if (hasSvgOnlyLayer) return;
     if (!isForcedTime || !rendererRef.current) return;
     renderOneFrame(rendererRef.current, forceTimeSeconds!);
-  }, [isForcedTime, forceTimeSeconds, renderOneFrame, hasTextLayer]);
+  }, [isForcedTime, forceTimeSeconds, renderOneFrame, hasSvgOnlyLayer]);
 
   // static preview (no animation, no forced time)
   useEffect(() => {
-    if (hasTextLayer) return;
+    if (hasSvgOnlyLayer) return;
     if (isForcedTime || animate) return;
     const renderer = rendererRef.current;
     if (!renderer) return;
     renderOneFrame(renderer, 0);
-  }, [isForcedTime, animate, renderOneFrame, hasTextLayer]);
+  }, [isForcedTime, animate, renderOneFrame, hasSvgOnlyLayer]);
 
   // preview animation loop
   useEffect(() => {
-    if (fallbackToSvg || hasTextLayer) return;
+    if (fallbackToSvg || hasSvgOnlyLayer) return;
     if (isForcedTime || !animate) return;
     const renderer = rendererRef.current;
     if (!renderer) return;
@@ -110,9 +112,9 @@ export default function SymbolComposerCanvasGL({
 
     rafRef.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [isForcedTime, animate, fpsCap, renderOneFrame, fallbackToSvg, hasTextLayer]);
+  }, [isForcedTime, animate, fpsCap, renderOneFrame, fallbackToSvg, hasSvgOnlyLayer]);
 
-  if (fallbackToSvg || hasTextLayer) {
+  if (fallbackToSvg || hasSvgOnlyLayer) {
     return (
       <SymbolComposerCanvas
         recipe={normalizedRecipe}

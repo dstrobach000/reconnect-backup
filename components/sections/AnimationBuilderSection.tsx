@@ -28,6 +28,12 @@ import {
 
 const COMPOSER_LIBRARY_API = '/api/composer-library';
 const RENDER_PRESETS_STORAGE_KEY = 'reconnect-render-presets-v1';
+const IMAGE_LAYER_MAX_BYTES = 4 * 1024 * 1024;
+const IMAGE_FIT_OPTIONS = [
+  { label: 'Contain', value: 'contain' },
+  { label: 'Cover', value: 'cover' },
+  { label: 'Stretch', value: 'stretch' },
+];
 
 function TickBox({ enabled, sizeClass = 'h-4 w-4', markClass = 'h-2.5 w-2.5' }) {
   return (
@@ -280,6 +286,15 @@ function writeSavedComposerItems(nextItems) {
   dispatchSavedItemsEvent(nextItems);
 }
 
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
+    reader.onerror = () => reject(reader.error || new Error('Unable to read image file'));
+    reader.readAsDataURL(file);
+  });
+}
+
 async function fetchPersistentComposerItems() {
   const response = await fetch(COMPOSER_LIBRARY_API, {
     method: 'GET',
@@ -338,6 +353,7 @@ export default function AnimationBuilderSection() {
   const [previewFpsCap, setPreviewFpsCap] = useState(30);
   const [previewTimeSeconds, setPreviewTimeSeconds] = useState(0);
   const [previewClockResetToken, setPreviewClockResetToken] = useState(0);
+  const [previewIsPlaying, setPreviewIsPlaying] = useState(true);
   const [renderPresetName, setRenderPresetName] = useState('');
   const [renderPresets, setRenderPresets] = useState([]);
   const [selectedRenderPresetId, setSelectedRenderPresetId] = useState('');
@@ -375,6 +391,7 @@ export default function AnimationBuilderSection() {
     () => renderPresets.find((item) => item.id === selectedRenderPresetId) || null,
     [renderPresets, selectedRenderPresetId],
   );
+  const selectedLayerIsImage = selectedLayer?.type === 'image';
   const prepassOrderSummary = normalizedRecipe.renderPrepassOrder === 'grain-first'
     ? 'Grain, then Particles'
     : 'Particles, then Grain';
@@ -439,13 +456,15 @@ export default function AnimationBuilderSection() {
   }, [statusMessage]);
 
   useEffect(() => {
+    if (!previewIsPlaying) return;
     let rafId = 0;
     const frameMs = 1000 / Math.max(1, previewFpsCap);
     const clockStart = performance.now();
+    const startOffsetMs = previewTimeSeconds * 1000;
     let lastFrame = -1;
 
     const tick = (now: number) => {
-      const elapsedMs = now - clockStart;
+      const elapsedMs = startOffsetMs + (now - clockStart);
       const frame = Math.floor(elapsedMs / frameMs);
       if (frame !== lastFrame) {
         lastFrame = frame;
@@ -456,11 +475,15 @@ export default function AnimationBuilderSection() {
 
     rafId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafId);
-  }, [previewFpsCap, previewClockResetToken]);
+  }, [previewFpsCap, previewClockResetToken, previewIsPlaying]);
 
   const resetPreviewClock = useCallback(() => {
     setPreviewTimeSeconds(0);
     setPreviewClockResetToken((value) => value + 1);
+  }, []);
+
+  const togglePreviewPlayback = useCallback(() => {
+    setPreviewIsPlaying((current) => !current);
   }, []);
 
   const patchRecipe = useCallback((patch) => {
@@ -482,6 +505,37 @@ export default function AnimationBuilderSection() {
       }),
     );
   }, []);
+
+  const handleImageSelection = useCallback(async (layerId, file) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setStatusMessage('Select an image file');
+      return;
+    }
+    if (file.size > IMAGE_LAYER_MAX_BYTES) {
+      setStatusMessage('Image too large. Keep it under 4 MB');
+      return;
+    }
+
+    try {
+      const imageSrc = await readFileAsDataUrl(file);
+      patchLayer(layerId, {
+        imageSrc,
+        imageName: file.name,
+        motion: 'none',
+        motionSecondary: 'none',
+        repeatCount: 1,
+        repeatRadius: 0,
+        repeatSpread: 360,
+        repeatOffset: 0,
+        repeatSizeRatio: 1,
+        rotation: 0,
+      });
+      setStatusMessage(`Loaded image "${file.name}"`);
+    } catch {
+      setStatusMessage('Failed to load image');
+    }
+  }, [patchLayer]);
 
   const patchRandomizer = useCallback((patch) => {
     setRandomizer((current) => ({ ...current, ...patch }));
@@ -773,6 +827,25 @@ export default function AnimationBuilderSection() {
               fpsCap={previewFpsCap}
               forceTimeSeconds={previewTimeSeconds}
             />
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={togglePreviewPlayback}
+                className="rounded border border-[rgb(var(--signal-rgb)/0.7)] bg-black/80 px-2 py-1 text-[10px] uppercase tracking-[0.18em]"
+              >
+                {previewIsPlaying ? 'Pause' : 'Play'}
+              </button>
+              <button
+                type="button"
+                onClick={resetPreviewClock}
+                className="rounded border border-[rgb(var(--signal-rgb)/0.7)] bg-black/80 px-2 py-1 text-[10px] uppercase tracking-[0.18em]"
+              >
+                Reset
+              </button>
+              <span className="text-[10px] uppercase tracking-[0.18em] text-[rgb(var(--signal-rgb)/0.72)]">
+                {previewTimeSeconds.toFixed(2)}s
+              </span>
+            </div>
           </div>
 
           <div className="flex flex-col gap-4 rounded border border-[rgb(var(--signal-rgb)/0.45)] bg-black/70 p-3">
@@ -802,7 +875,7 @@ export default function AnimationBuilderSection() {
             <div className="order-6">
               <ExportPanel
                 recipe={normalizedRecipe}
-                onResetClock={resetPreviewClock}
+                stillTimeSeconds={previewTimeSeconds}
               />
             </div>
 
@@ -1165,90 +1238,117 @@ export default function AnimationBuilderSection() {
                     options={LAYER_TYPE_OPTIONS}
                     onChange={(value) => changeLayerType(selectedLayer.id, value)}
                   />
-                  <SelectField
-                    label="Fill Mode"
-                    value={selectedLayer.fillMode}
-                    options={FILL_MODE_OPTIONS}
-                    onChange={(value) => patchLayer(selectedLayer.id, { fillMode: value })}
-                  />
-                  <SelectField
-                    label="Dash"
-                    value={selectedLayer.dashStyle}
-                    options={DASH_STYLE_OPTIONS}
-                    onChange={(value) => patchLayer(selectedLayer.id, { dashStyle: value })}
-                  />
-                  <SelectField
-                    label="Motion"
-                    value={selectedLayer.motion}
-                    options={MOTION_TYPE_OPTIONS}
-                    onChange={(value) => patchLayer(selectedLayer.id, { motion: value })}
-                  />
-                  <SelectField
-                    label="Motion 2"
-                    value={selectedLayer.motionSecondary || 'none'}
-                    options={MOTION_TYPE_OPTIONS}
-                    onChange={(value) => patchLayer(selectedLayer.id, { motionSecondary: value })}
-                  />
-                  <RangeField
-                    label="Motion Speed"
-                    value={selectedLayer.motionSpeed}
-                    min={1}
-                    max={24}
-                    step={0.1}
-                    note={layerMotionSpeedNote}
-                    onChange={(value) => patchLayer(selectedLayer.id, { motionSpeed: value })}
-                  />
-                  <RangeField
-                    label="Rotation"
-                    value={selectedLayer.rotation}
-                    min={0}
-                    max={359}
-                    step={1}
-                    suffix="deg"
-                    onChange={(value) => patchLayer(selectedLayer.id, { rotation: value })}
-                  />
-                  <RangeField
-                    label="Repeat Count"
-                    value={selectedLayer.repeatCount}
-                    min={1}
-                    max={24}
-                    step={1}
-                    onChange={(value) => patchLayer(selectedLayer.id, { repeatCount: value })}
-                  />
-                  <RangeField
-                    label="Repeat Radius"
-                    value={selectedLayer.repeatRadius}
-                    min={0}
-                    max={44}
-                    step={0.5}
-                    onChange={(value) => patchLayer(selectedLayer.id, { repeatRadius: value })}
-                  />
-                  <RangeField
-                    label="Repeat Spread"
-                    value={selectedLayer.repeatSpread}
-                    min={0}
-                    max={360}
-                    step={1}
-                    suffix="deg"
-                    onChange={(value) => patchLayer(selectedLayer.id, { repeatSpread: value })}
-                  />
-                  <RangeField
-                    label="Repeat Offset"
-                    value={selectedLayer.repeatOffset}
-                    min={0}
-                    max={359}
-                    step={1}
-                    suffix="deg"
-                    onChange={(value) => patchLayer(selectedLayer.id, { repeatOffset: value })}
-                  />
-                  <RangeField
-                    label="Repeat Size"
-                    value={selectedLayer.repeatSizeRatio}
-                    min={0.2}
-                    max={1.8}
-                    step={0.01}
-                    onChange={(value) => patchLayer(selectedLayer.id, { repeatSizeRatio: value })}
-                  />
+                  {selectedLayerIsImage ? (
+                    <label className="flex flex-col gap-1 text-[10px] uppercase tracking-[0.18em]">
+                      <span>Image File</span>
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        onChange={(event) => {
+                          const file = event.target.files?.[0];
+                          void handleImageSelection(selectedLayer.id, file);
+                          event.target.value = '';
+                        }}
+                        className="rounded border border-[rgb(var(--signal-rgb)/0.35)] bg-black/80 px-2 py-1 text-xs normal-case text-[var(--signal)] file:mr-2 file:border-0 file:bg-transparent file:text-[var(--signal)]"
+                      />
+                    </label>
+                  ) : (
+                    <SelectField
+                      label="Fill Mode"
+                      value={selectedLayer.fillMode}
+                      options={FILL_MODE_OPTIONS}
+                      onChange={(value) => patchLayer(selectedLayer.id, { fillMode: value })}
+                    />
+                  )}
+                  {selectedLayerIsImage ? (
+                    <SelectField
+                      label="Image Fit"
+                      value={selectedLayer.imageFit || 'contain'}
+                      options={IMAGE_FIT_OPTIONS}
+                      onChange={(value) => patchLayer(selectedLayer.id, { imageFit: value })}
+                    />
+                  ) : (
+                    <>
+                      <SelectField
+                        label="Dash"
+                        value={selectedLayer.dashStyle}
+                        options={DASH_STYLE_OPTIONS}
+                        onChange={(value) => patchLayer(selectedLayer.id, { dashStyle: value })}
+                      />
+                      <SelectField
+                        label="Motion"
+                        value={selectedLayer.motion}
+                        options={MOTION_TYPE_OPTIONS}
+                        onChange={(value) => patchLayer(selectedLayer.id, { motion: value })}
+                      />
+                      <SelectField
+                        label="Motion 2"
+                        value={selectedLayer.motionSecondary || 'none'}
+                        options={MOTION_TYPE_OPTIONS}
+                        onChange={(value) => patchLayer(selectedLayer.id, { motionSecondary: value })}
+                      />
+                      <RangeField
+                        label="Motion Speed"
+                        value={selectedLayer.motionSpeed}
+                        min={1}
+                        max={24}
+                        step={0.1}
+                        note={layerMotionSpeedNote}
+                        onChange={(value) => patchLayer(selectedLayer.id, { motionSpeed: value })}
+                      />
+                      <RangeField
+                        label="Rotation"
+                        value={selectedLayer.rotation}
+                        min={0}
+                        max={359}
+                        step={1}
+                        suffix="deg"
+                        onChange={(value) => patchLayer(selectedLayer.id, { rotation: value })}
+                      />
+                      <RangeField
+                        label="Repeat Count"
+                        value={selectedLayer.repeatCount}
+                        min={1}
+                        max={24}
+                        step={1}
+                        onChange={(value) => patchLayer(selectedLayer.id, { repeatCount: value })}
+                      />
+                      <RangeField
+                        label="Repeat Radius"
+                        value={selectedLayer.repeatRadius}
+                        min={0}
+                        max={44}
+                        step={0.5}
+                        onChange={(value) => patchLayer(selectedLayer.id, { repeatRadius: value })}
+                      />
+                      <RangeField
+                        label="Repeat Spread"
+                        value={selectedLayer.repeatSpread}
+                        min={0}
+                        max={360}
+                        step={1}
+                        suffix="deg"
+                        onChange={(value) => patchLayer(selectedLayer.id, { repeatSpread: value })}
+                      />
+                      <RangeField
+                        label="Repeat Offset"
+                        value={selectedLayer.repeatOffset}
+                        min={0}
+                        max={359}
+                        step={1}
+                        suffix="deg"
+                        onChange={(value) => patchLayer(selectedLayer.id, { repeatOffset: value })}
+                      />
+                      <RangeField
+                        label="Repeat Size"
+                        value={selectedLayer.repeatSizeRatio}
+                        min={0.2}
+                        max={1.8}
+                        step={0.01}
+                        onChange={(value) => patchLayer(selectedLayer.id, { repeatSizeRatio: value })}
+                      />
+                    </>
+                  )}
 
                   {selectedLayer.type === 'ring' ? (
                     <>
@@ -1391,6 +1491,25 @@ export default function AnimationBuilderSection() {
                         step={0.1}
                         onChange={(value) => patchLayer(selectedLayer.id, { textYOffset: value })}
                       />
+                    </>
+                  ) : null}
+
+                  {selectedLayer.type === 'image' ? (
+                    <>
+                      <div className="rounded border border-[rgb(var(--signal-rgb)/0.28)] px-2 py-2 text-[10px] uppercase tracking-[0.14em] text-[rgb(var(--signal-rgb)/0.72)] sm:col-span-2">
+                        {selectedLayer.imageName
+                          ? `Loaded: ${selectedLayer.imageName}`
+                          : 'No image loaded. Upload a PNG, JPG, or WEBP to feed the render pipeline.'}
+                      </div>
+                      {selectedLayer.imageSrc ? (
+                        <button
+                          type="button"
+                          onClick={() => patchLayer(selectedLayer.id, { imageSrc: '', imageName: '' })}
+                          className="rounded border border-[rgb(var(--signal-rgb)/0.35)] px-3 py-2 text-[10px] uppercase tracking-[0.18em]"
+                        >
+                          Clear Image
+                        </button>
+                      ) : null}
                     </>
                   ) : null}
 

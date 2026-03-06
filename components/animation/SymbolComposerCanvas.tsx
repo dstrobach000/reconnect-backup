@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import gsap from 'gsap';
 import { normalizeComposerRecipe } from '../../lib/symbolComposer';
 
@@ -311,7 +311,17 @@ function getLayerExtent(layer, masterStrokeWidth) {
     return (radius + strokePadding) * repeatScaleMax + layer.repeatRadius;
   }
 
+  if (layer.type === 'image') {
+    return 0;
+  }
+
   return 1;
+}
+
+function getImagePreserveAspectRatio(imageFit) {
+  if (imageFit === 'cover') return 'xMidYMid slice';
+  if (imageFit === 'stretch') return 'none';
+  return 'xMidYMid meet';
 }
 
 function estimateEffectPad(effect, strength, detail) {
@@ -752,6 +762,21 @@ function LayerGlyph({
     );
   }
 
+  if (layer.type === 'image') {
+    if (!layer.imageSrc) return null;
+    return (
+      <image
+        href={layer.imageSrc}
+        xlinkHref={layer.imageSrc}
+        x={-50}
+        y={-50}
+        width={100}
+        height={100}
+        preserveAspectRatio={getImagePreserveAspectRatio(layer.imageFit)}
+      />
+    );
+  }
+
   return null;
 }
 
@@ -771,7 +796,7 @@ export default function SymbolComposerCanvas({
   const normalizedRecipe = useMemo(() => normalizeComposerRecipe(recipe), [recipe]);
   const [hasMounted, setHasMounted] = useState(false);
   const safeFpsCap = clampNumber(fpsCap, 12, 60);
-  const safeFilterResolution = Math.round(clampNumber(filterResolution, 128, 2048));
+  const safeFilterResolution = Math.round(clampNumber(filterResolution, 128, 4096));
   const isForcedTimeMode = typeof forceTimeSeconds === 'number' && Number.isFinite(forceTimeSeconds);
   useEffect(() => {
     setHasMounted(true);
@@ -913,6 +938,7 @@ export default function SymbolComposerCanvas({
 
     normalizedRecipe.layers.forEach((layer, layerIndex) => {
       if (!layer.enabled) return;
+      if (layer.type === 'image') return;
       const enabledLayerIndex = enabledLayerOrderByIndex[layerIndex];
       const layerScale = getLayerSizeScale(
         enabledLayerIndex < 0 ? 0 : enabledLayerIndex,
@@ -960,6 +986,106 @@ export default function SymbolComposerCanvas({
     normalizedRecipe.layerSizeRatioLfoCycleSeconds,
     normalizedRecipe.loopSeconds,
     forcedTimeSecondsSafe,
+  ]);
+  const renderLayerInstances = useCallback((layer, layerIndex, feedbackIndex) => {
+    if (!layer.enabled) return null;
+
+    if (layer.type === 'image') {
+      if (feedbackIndex > 0) return null;
+      return (
+        <g key={`${layer.id}-f${feedbackIndex}`}>
+          <g transform="translate(50 50)">
+            <LayerGlyph
+              layer={layer}
+              masterStrokeWidth={normalizedRecipe.masterStrokeWidth}
+              layerColor={layerColor}
+              noiseFillId={noisePatternId}
+              forceTimeSeconds={forceTimeSeconds}
+              loopSeconds={normalizedRecipe.loopSeconds}
+              masterSpeed={globalMotionSpeed}
+            />
+          </g>
+        </g>
+      );
+    }
+
+    const forcedLayerMotion = isForcedTimeMode
+      ? getForcedLayerMotionState(
+        layer,
+        forcedTimeSecondsSafe,
+        normalizedRecipe.loopSeconds,
+        globalMotionSpeed,
+      )
+      : null;
+    const layerForGlyph = forcedLayerMotion?.layerForGlyph || layer;
+    const enabledLayerIndex = enabledLayerOrderByIndex[layerIndex];
+    const layerSizeScale = getLayerSizeScale(
+      enabledLayerIndex < 0 ? 0 : enabledLayerIndex,
+      enabledLayerCount,
+      forcedLayerSizeRatio,
+    );
+
+    return (
+      <g
+        key={`${layer.id}-f${feedbackIndex}`}
+        data-master-scene-layer
+        transform={`translate(50 50) scale(${sceneScale}) translate(-50 -50)`}
+      >
+        <g data-master-motion transform={forcedMasterMotionTransform}>
+          <g
+            data-layer-index={layerIndex}
+            transform={forcedLayerMotion?.layerTransform}
+            opacity={forcedLayerMotion?.layerOpacity}
+          >
+            {Array.from({ length: layer.repeatCount }, (_, index) => {
+              const position = getRepeatPosition(layer, index);
+              const repeatInstanceScale = getRepeatInstanceScale(layer, index);
+              return (
+                <g
+                  key={`${layer.id}-${feedbackIndex}-${index}`}
+                  data-instance
+                  transform={`translate(${position.x} ${position.y}) rotate(${layer.rotation})`}
+                >
+                  <g
+                    data-instance-motion
+                    transform={forcedLayerMotion?.instanceTransform}
+                    opacity={forcedLayerMotion?.instanceMotionOpacity}
+                  >
+                    <g transform={`scale(${repeatInstanceScale})`}>
+                      <g data-layer-size-index={layerIndex} transform={`scale(${layerSizeScale})`}>
+                        <LayerGlyph
+                          layer={layerForGlyph}
+                          masterStrokeWidth={normalizedRecipe.masterStrokeWidth}
+                          layerColor={layerColor}
+                          noiseFillId={noisePatternId}
+                          forceTimeSeconds={forceTimeSeconds}
+                          loopSeconds={normalizedRecipe.loopSeconds}
+                          masterSpeed={globalMotionSpeed}
+                        />
+                      </g>
+                    </g>
+                  </g>
+                </g>
+              );
+            })}
+          </g>
+        </g>
+      </g>
+    );
+  }, [
+    enabledLayerCount,
+    enabledLayerOrderByIndex,
+    forceTimeSeconds,
+    forcedLayerSizeRatio,
+    forcedMasterMotionTransform,
+    forcedTimeSecondsSafe,
+    globalMotionSpeed,
+    isForcedTimeMode,
+    layerColor,
+    noisePatternId,
+    normalizedRecipe.loopSeconds,
+    normalizedRecipe.masterStrokeWidth,
+    sceneScale,
   ]);
 
   useLayoutEffect(() => {
@@ -1629,8 +1755,7 @@ export default function SymbolComposerCanvas({
                     fill="transparent"
                     pointerEvents="none"
                   />
-                  <g data-master-scene transform={`translate(50 50) scale(${sceneScale}) translate(-50 -50)`}>
-                    {Array.from({ length: normalizedRecipe.masterFeedback + 1 }, (_, index) => normalizedRecipe.masterFeedback - index).map((feedbackIndex) => {
+                  {Array.from({ length: normalizedRecipe.masterFeedback + 1 }, (_, index) => normalizedRecipe.masterFeedback - index).map((feedbackIndex) => {
                         const feedbackScale = 1 + feedbackIndex * 0.08;
                         const feedbackOpacity = feedbackIndex === 0 ? 1 : Math.max(0.06, 0.25 / (feedbackIndex + 1));
                         let feedbackScaleRuntime = feedbackScale;
@@ -1681,71 +1806,11 @@ export default function SymbolComposerCanvas({
                           opacity={feedbackOpacityRuntime}
                           transform={`translate(50 50) scale(${feedbackScaleRuntime}) translate(-50 -50)`}
                         >
-                          <g data-master-motion transform={forcedMasterMotionTransform}>
-                            {normalizedRecipe.layers.map((layer, layerIndex) => {
-                              if (!layer.enabled) return null;
-                              const forcedLayerMotion = isForcedTimeMode
-                                ? getForcedLayerMotionState(
-                                  layer,
-                                  forcedTimeSecondsSafe,
-                                  normalizedRecipe.loopSeconds,
-                                  globalMotionSpeed,
-                                )
-                                : null;
-                              const layerForGlyph = forcedLayerMotion?.layerForGlyph || layer;
-                              const enabledLayerIndex = enabledLayerOrderByIndex[layerIndex];
-                              const layerSizeScale = getLayerSizeScale(
-                                enabledLayerIndex < 0 ? 0 : enabledLayerIndex,
-                                enabledLayerCount,
-                                forcedLayerSizeRatio,
-                              );
-
-                              return (
-                                <g
-                                  key={`${layer.id}-f${feedbackIndex}`}
-                                  data-layer-index={layerIndex}
-                                  transform={forcedLayerMotion?.layerTransform}
-                                  opacity={forcedLayerMotion?.layerOpacity}
-                                >
-                                  {Array.from({ length: layer.repeatCount }, (_, index) => {
-                                    const position = getRepeatPosition(layer, index);
-                                    const repeatInstanceScale = getRepeatInstanceScale(layer, index);
-                                    return (
-                                      <g
-                                        key={`${layer.id}-${feedbackIndex}-${index}`}
-                                        data-instance
-                                        transform={`translate(${position.x} ${position.y}) rotate(${layer.rotation})`}
-                                      >
-                                        <g
-                                          data-instance-motion
-                                          transform={forcedLayerMotion?.instanceTransform}
-                                          opacity={forcedLayerMotion?.instanceMotionOpacity}
-                                        >
-                                          <g transform={`scale(${repeatInstanceScale})`}>
-                                            <g data-layer-size-index={layerIndex} transform={`scale(${layerSizeScale})`}>
-                                              <LayerGlyph
-                                                layer={layerForGlyph}
-                                                masterStrokeWidth={normalizedRecipe.masterStrokeWidth}
-                                                layerColor={layerColor}
-                                                noiseFillId={noisePatternId}
-                                                forceTimeSeconds={forceTimeSeconds}
-                                                loopSeconds={normalizedRecipe.loopSeconds}
-                                                masterSpeed={globalMotionSpeed}
-                                              />
-                                            </g>
-                                          </g>
-                                        </g>
-                                      </g>
-                                    );
-                                  })}
-                                </g>
-                              );
-                            })}
-                          </g>
+                          {normalizedRecipe.layers.map((layer, layerIndex) =>
+                            renderLayerInstances(layer, layerIndex, feedbackIndex))}
                         </g>
                       );
                     })}
-                  </g>
                 </g>
               </g>
             </g>

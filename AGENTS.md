@@ -56,10 +56,24 @@ If `test:e2e:webkit` cannot run locally (missing WebKit runtime), state that exp
    - layer type `text` is supported with editable content and existing layer/master motions
    - `typewriter` motion reveals text per character over the layer cycle
    - when any enabled text layer is present, preview must use SVG renderer fallback (WebGL text rendering is out of scope)
-7. `Master Stroke Width` must keep fine precision near zero (0.2 step), including visible intermediate states between `0` and `1`.
-8. Keep Remotion export font loading isolated:
-   - do not import `app/fonts.css` in the Remotion entry path
-   - load only the export-required fonts explicitly inside the composition/export code
+7. Image layer contract (MVP):
+   - layer type `image` is supported as a static canvas source for the render pipeline
+   - accepted builder uploads are `png`, `jpg/jpeg`, and `webp`
+   - image layers are fixed screen-space content and must not receive scene-fit scaling, master motion, or layer motion
+   - image layers must still pass through prepass and render-effect stages exactly like other scene content
+   - when any enabled image layer is present, preview must use SVG renderer fallback (WebGL image rendering is out of scope)
+8. `Master Stroke Width` must keep fine precision near zero (0.2 step), including visible intermediate states between `0` and `1`.
+9. Keep Remotion export font loading isolated:
+   - load export-required fonts explicitly inside the composition/export code before rendering frames
+   - if the font-loading strategy changes, update `README.md` and this file to match the real implementation
+10. Export resolution contract:
+   - standard square export presets are `512`, `720`, `1080`, and `1920`
+   - `3508` is allowed for static `PNG` export only
+   - if high-resolution export presets change, update the export UI, export-service validation, Remotion metadata clamps, and documentation together
+11. Preview transport / still export contract:
+   - builder preview supports play, pause, and reset controls
+   - static `PNG` export must render from the current preview time, not a hardcoded midpoint frame
+   - if preview clock behavior changes, update the export handoff so still exports stay frame-accurate
 
 ## Required Validation Before Finishing (Animation Changes)
 

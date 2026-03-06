@@ -6,7 +6,7 @@ import { normalizeComposerRecipe } from './symbolComposer';
 const REMOTION_ENTRY = path.join(process.cwd(), 'remotion', 'index.ts');
 const EXPORT_DIR = path.join(process.cwd(), 'public', 'exports');
 const EXPORT_FPS = 25;
-const VALID_RESOLUTIONS = [512, 720, 1080, 1920] as const;
+const VALID_RESOLUTIONS = [512, 720, 1080, 1920, 3508] as const;
 const GRID_VIDEO_RESOLUTION = 512;
 const GRID_VIDEO_LIMIT = 512;
 const GRID_VIDEO_NAME_PATTERN = new RegExp(`^${GRID_VIDEO_RESOLUTION}_.+\\.mp4$`, 'i');
@@ -107,6 +107,7 @@ export type ExportRequest = {
   width: number;
   height: number;
   filterResolution?: number;
+  stillTimeSeconds?: number;
 };
 
 export type ExportResult = {
@@ -158,11 +159,14 @@ export async function renderExport(
   const normalizedRecipe = normalizeComposerRecipe(input.recipe);
   const format: ExportFormat = input.format === 'png' ? 'png' : 'mp4';
   const resolution = validateResolution(input.width);
+  if (format === 'mp4' && resolution > 1920) {
+    throw new Error('3508 exports are available for PNG only.');
+  }
   const width = resolution;
   const height = resolution;
   const fps = EXPORT_FPS;
   const filterResolution = Math.round(
-    Math.min(2048, Math.max(128, Number(input.filterResolution) || resolution)),
+    Math.min(4096, Math.max(128, Number(input.filterResolution) || resolution)),
   );
   const exportPrefix = getExportPrefix(normalizedRecipe);
   const durationInFrames = Math.max(
@@ -194,9 +198,14 @@ export async function renderExport(
   if (format === 'png') {
     const filename = await createExportName(resolution, exportPrefix, 'png');
     const outputPath = path.join(EXPORT_DIR, filename);
+    const loopSeconds = Math.max(0.1, Number(normalizedRecipe.loopSeconds) || durationInFrames / fps);
+    const requestedStillTime = Number(input.stillTimeSeconds);
+    const wrappedStillTime = Number.isFinite(requestedStillTime)
+      ? ((requestedStillTime % loopSeconds) + loopSeconds) % loopSeconds
+      : loopSeconds * 0.5;
     const stillFrame = Math.max(
       0,
-      Math.min(durationInFrames - 1, Math.floor(durationInFrames * 0.5)),
+      Math.min(durationInFrames - 1, Math.round(wrappedStillTime * fps)),
     );
 
     await renderStill({

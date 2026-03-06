@@ -44,6 +44,7 @@ export async function POST(request: Request) {
             width: Number(body?.width) || 512,
             height: Number(body?.height) || 512,
             filterResolution: Number(body?.filterResolution) || 512,
+            stillTimeSeconds: Number(body?.stillTimeSeconds),
           },
           (fraction) => {
             const percent = Math.floor(fraction * 100);

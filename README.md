@@ -57,17 +57,36 @@ App runs at `http://localhost:3000`.
 - Works in both live preview and export (forced-time path)
 - Uses existing `Motion Speed` + loop sync behavior
 
+### Image Layer (MVP)
+
+- New layer type: `Image`
+- Accepts static `PNG`, `JPG`, and `WEBP` uploads from the builder
+- Stored in the recipe as a data URL for preview/export parity
+- Layer editor controls:
+  - `Image File`
+  - `Image Fit` (`contain`, `cover`, `stretch`)
+- Current guardrails:
+  - static only, no image-specific motion system
+  - builder-side upload limit: `4 MB`
+  - intended use is feeding the same render pipeline as symbol geometry
+
 ### Renderer Behavior
 
-- WebGL preview path does **not** render text geometry yet.
-- If any enabled layer is `Text`, preview automatically falls back to the SVG renderer.
+- WebGL preview path does **not** render text or image layers yet.
+- If any enabled layer is `Text` or `Image`, preview automatically falls back to the SVG renderer.
 - Exports already use SVG composition, so text/typewriter behavior matches export output.
-- Remotion export entry must not import `app/fonts.css`; export-specific fonts should be loaded explicitly inside the composition to avoid webpack font-resolution failures during MP4 export.
+- Remotion export loads Mekanikal explicitly inside the composition with `FontFace` before rendering frames.
+- Text and image layers render through the same SVG prepass/effects chain used by export.
+- Image layers are treated as fixed canvas content:
+  - they do not participate in scene-fit scaling
+  - they do not receive master motion or layer motion transforms
+  - they still pass through particles, grain, and render effects
 
 ### Randomizer Behavior
 
 - `Text` is available in layer type dropdowns.
-- Randomizer default shape pool excludes `Text` to avoid random text layers unless explicitly selected.
+- `Image` is available in layer type dropdowns.
+- Randomizer default shape pool excludes `Text` and `Image` to avoid random content layers unless explicitly selected.
 
 ### Stroke Width Slider Precision
 
@@ -77,6 +96,19 @@ App runs at `http://localhost:3000`.
 
 - SVG render pipeline includes a transparent full-canvas coverage rect in the filtered chain to prevent small-geometry/text-only filter bbox collapse.
 - This keeps grain/effects coverage consistent across the whole preview canvas.
+
+### Export Resolutions
+
+- Standard square exports: `512`, `720`, `1080`, `1920`
+- Print still export: `3508`
+- `3508` is supported for `PNG` only, intended for static print graphics
+- High-resolution exports pass an explicit filter resolution through the export pipeline so render effects do not default back to `512`
+
+### Preview Transport
+
+- Builder preview now has `Play`, `Pause`, and `Reset` controls
+- The current preview time is shown next to the transport controls
+- `PNG` export uses the current preview time instead of a fixed midpoint frame
 
 ## Video Autoplay Contract (iOS/Safari)
 

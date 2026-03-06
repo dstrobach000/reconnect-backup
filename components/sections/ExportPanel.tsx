@@ -9,11 +9,12 @@ const RESOLUTION_PRESETS = [
   { value: '720', label: '720 px' },
   { value: '1080', label: '1080 px' },
   { value: '1920', label: '1920 px' },
+  { value: '3508', label: '3508 px (PNG)' },
 ];
 
 type ExportPanelProps = {
   recipe: Record<string, unknown>;
-  onResetClock?: () => void;
+  stillTimeSeconds?: number;
 };
 
 function computeTimeoutMs(resolution: number, loopSeconds: number): number {
@@ -75,7 +76,7 @@ async function readNdjsonStream(
 
 export default function ExportPanel({
   recipe,
-  onResetClock,
+  stillTimeSeconds = 0,
 }: ExportPanelProps) {
   const [resolution, setResolution] = useState('512');
   const [formatInFlight, setFormatInFlight] = useState<null | 'mp4' | 'png'>(
@@ -83,6 +84,7 @@ export default function ExportPanel({
   );
   const [progress, setProgress] = useState(0);
   const [statusMessage, setStatusMessage] = useState('');
+  const isPrintStillResolution = resolution === '3508';
 
   useEffect(() => {
     if (!statusMessage || formatInFlight) return;
@@ -94,7 +96,6 @@ export default function ExportPanel({
   const exportSymbol = useCallback(
     async (format: 'mp4' | 'png') => {
       if (formatInFlight) return;
-      onResetClock?.();
       setFormatInFlight(format);
       setProgress(0);
       setStatusMessage('');
@@ -102,6 +103,12 @@ export default function ExportPanel({
       const res = Number(resolution);
       const loopSeconds = Number(recipe?.loopSeconds) || 8;
       const timeoutMs = computeTimeoutMs(res, loopSeconds);
+
+      if (format === 'mp4' && res > 1920) {
+        setFormatInFlight(null);
+        setStatusMessage('3508 export is PNG only');
+        return;
+      }
 
       let didTimeout = false;
       let timeoutId: number | null = null;
@@ -122,6 +129,8 @@ export default function ExportPanel({
             recipe,
             width: res,
             height: res,
+            filterResolution: Math.min(res, 4096),
+            stillTimeSeconds: format === 'png' ? stillTimeSeconds : undefined,
           }),
         });
 
@@ -191,7 +200,7 @@ export default function ExportPanel({
         setProgress(0);
       }
     },
-    [formatInFlight, onResetClock, recipe, resolution],
+    [formatInFlight, recipe, resolution, stillTimeSeconds],
   );
 
   const statusLabel = formatInFlight
@@ -224,7 +233,7 @@ export default function ExportPanel({
             type="button"
             onClick={() => exportSymbol('mp4')}
             className="flex-1 rounded border border-[rgb(var(--signal-rgb)/0.7)] bg-black/80 px-2 py-2 text-[10px] uppercase tracking-[0.18em] disabled:opacity-45"
-            disabled={formatInFlight !== null}
+            disabled={formatInFlight !== null || isPrintStillResolution}
           >
             {formatInFlight === 'mp4' ? 'Exporting...' : 'Export MP4'}
           </button>
@@ -238,6 +247,14 @@ export default function ExportPanel({
           </button>
         </div>
       </div>
+      {isPrintStillResolution ? (
+        <p className="mt-2 text-[9px] uppercase tracking-[0.14em] text-[rgb(var(--signal-rgb)/0.72)]">
+          3508 is enabled for static PNG export only.
+        </p>
+      ) : null}
+      <p className="mt-2 text-[9px] uppercase tracking-[0.14em] text-[rgb(var(--signal-rgb)/0.72)]">
+        PNG exports use the current preview time.
+      </p>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-const LAYER_TYPES = ['ring', 'cross', 'dot', 'ticks', 'square', 'grid', 'line', 'text'];
+const LAYER_TYPES = ['ring', 'cross', 'dot', 'ticks', 'square', 'grid', 'line', 'text', 'image'];
 const RANDOMIZER_LAYER_TYPES = ['ring', 'cross', 'dot', 'ticks', 'square', 'grid', 'line'];
 const FILL_MODES = ['stroke', 'fill', 'fill-stroke', 'noise', 'noise-stroke'];
 const DASH_STYLES = ['solid', 'dashed'];
@@ -43,6 +43,7 @@ export const LAYER_TYPE_OPTIONS = [
   { label: 'Grid', value: 'grid' },
   { label: 'Line', value: 'line' },
   { label: 'Text', value: 'text' },
+  { label: 'Image', value: 'image' },
 ];
 
 export const FILL_MODE_OPTIONS = [
@@ -201,6 +202,11 @@ const TYPE_DEFAULTS = {
     textBaseline: 'middle',
     textYOffset: 0,
   },
+  image: {
+    imageSrc: '',
+    imageName: '',
+    imageFit: 'contain',
+  },
 };
 
 export function createLayer(type = 'ring', overrides = {}) {
@@ -264,6 +270,9 @@ function normalizeLayer(rawLayer) {
     textAnchor: 'middle',
     textBaseline: 'middle',
     textYOffset: clampNumber(merged.textYOffset, -30, 30, 0),
+    imageSrc: typeof merged.imageSrc === 'string' ? merged.imageSrc : '',
+    imageName: typeof merged.imageName === 'string' ? merged.imageName.slice(0, 120) : '',
+    imageFit: ['contain', 'cover', 'stretch'].includes(merged.imageFit) ? merged.imageFit : 'contain',
   };
 }
 
