@@ -17,12 +17,13 @@ html,
 body {
   margin: 0;
   padding: 0;
+  background: #fffcf2;
 }
 
 body {
   min-height: 100vh;
-  background: var(--bg-dark);
-  color: var(--text-light);
+  background: #fffcf2;
+  color: #403d39;
   font-family: var(--font-roobertmono), monospace;
 }
 

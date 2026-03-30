@@ -1,9 +1,5 @@
-import PresentationSectionStack from '../components/sections/PresentationSectionStack';
+import ReconnectHomepage from '../components/home/ReconnectHomepage';
 
 export default function HomePage() {
-  return (
-    <main className="min-h-screen">
-      <PresentationSectionStack />
-    </main>
-  );
+  return <ReconnectHomepage />;
 }
